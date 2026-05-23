@@ -11,6 +11,8 @@
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+
+
   <style>
     /* ==========================================================================
        STYLESHEET (css/styles.css inline)
@@ -404,7 +406,10 @@
     .content-frame {
       padding: 30px;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       position: relative;
+      flex: 1 1 0;
+      min-height: 0;
     }
 
     .dashboard-grid {
@@ -717,13 +722,15 @@
       background: rgba(15, 32, 64, 0.2);
       border: var(--border);
       border-radius: var(--radius-lg);
-      overflow: hidden;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       box-shadow: var(--shadow);
       margin-bottom: 20px;
     }
 
     .cabo-table {
       width: 100%;
+      min-width: 600px;
       border-collapse: collapse;
       text-align: left;
       font-size: 13px;
@@ -1324,23 +1331,145 @@
       .kanban-column { min-height: auto; }
     }
 
+    /* Sidebar backdrop overlay (mobile) */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 9;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sidebar-overlay.open { display: block; }
+
+    /* Sync status chip in header */
+    .sync-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      cursor: default;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      color: var(--text-muted);
+      transition: all 0.3s;
+    }
+    .sync-chip.active {
+      border-color: rgba(91,199,142,0.4);
+      background: rgba(91,199,142,0.08);
+      color: #5BC78E;
+    }
+
     @media (max-width: 768px) {
+      /* Sidebar */
       .sidebar {
-        position: absolute;
+        position: fixed;
         left: 0;
         top: 0;
         bottom: 0;
+        height: 100%;
         transform: translateX(-100%);
+        z-index: 10;
+        width: 280px;
       }
-      .sidebar.open { transform: translateX(0); }
+      .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.6); }
+      .sidebar { z-index: 150; }
+      .sidebar-overlay { z-index: 149; }
       .menu-toggle { display: block; }
-      .header-bar { padding: 0 16px; }
-      .content-frame { padding: 16px; }
-      .dashboard-grid { grid-template-columns: 1fr; }
+
+      /* Header */
+      .header-bar { padding: 0 12px; height: 56px; }
+      .header-title { font-size: 14px; }
+      .metric-pill { padding: 7px 9px; }
+      .metric-pill span { display: none; }
+      .sync-chip span { display: none; }
+
+      /* Content */
+      .content-frame { padding: 12px; }
+
+      /* Grids */
+      .dashboard-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+      .dashboard-layout { grid-template-columns: 1fr; gap: 12px; }
       .form-grid { grid-template-columns: 1fr; }
       .form-full { grid-column: span 1; }
-      .drawer-box { width: 100%; }
       .op-card-grid { grid-template-columns: 1fr; }
+      .assistant-stat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+
+      /* KPI cards */
+      .kpi-card { padding: 14px 12px; }
+      .kpi-value { font-size: 20px; }
+      .kpi-label { font-size: 10px; }
+
+      /* Charts */
+      .chart-section { padding: 14px; }
+      .chart-container { height: 200px; }
+
+      /* Drawer */
+      .drawer-box { width: 100%; border-radius: var(--radius-lg) var(--radius-lg) 0 0; bottom: 0; top: auto; max-height: 90vh; overflow-y: auto; }
+
+      /* Modals — bottom sheet style on mobile */
+      .modal-overlay { align-items: flex-end; padding: 0; }
+      .modal-box {
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        max-height: 92vh;
+        width: 100%;
+        max-width: 100%;
+      }
+      .modal-header { padding: 16px 16px 14px; }
+      .modal-body { padding: 16px; }
+
+      /* Login card */
+      .login-card { padding: 28px 20px; margin: 12px; }
+
+      /* View tabs — horizontal scroll */
+      .view-tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+      .view-tabs::-webkit-scrollbar { display: none; }
+
+      /* Section headers */
+      .section-header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+      .section-header > div:last-child { width: 100%; }
+      .section-header .btn { width: 100%; justify-content: center; }
+
+      /* Buttons — bigger touch targets */
+      .btn { min-height: 42px; }
+      .btn-icon { min-width: 42px; min-height: 42px; }
+
+      /* Tables — horizontal scroll */
+      .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -12px; padding: 0 12px; }
+      table { min-width: 600px; }
+
+      /* Sidebar footer */
+      .sidebar-footer { padding: 12px 16px; }
+
+      /* Wide modals on mobile */
+      .user-modal-wide .modal-box,
+      .booking-modal-wide .modal-box { width: 100%; }
+
+      /* Prevent Android auto-zoom on input focus (requires 16px min) */
+      input, select, textarea, .form-input, .form-select,
+      .form-textarea, .search-input { font-size: 16px !important; }
+    }
+
+    @media (max-width: 480px) {
+      .dashboard-grid { grid-template-columns: 1fr; gap: 8px; }
+      .kpi-card { padding: 12px; }
+      .kpi-value { font-size: 18px; }
+      .chart-section { padding: 12px; }
+      .chart-container { height: 170px; }
+      .content-frame { padding: 10px; }
+      .header-bar { height: 52px; padding: 0 10px; }
+      .header-title { font-size: 13px; }
+      .login-card { padding: 24px 16px; margin: 8px; }
+      .login-title { font-size: 18px; }
+      .modal-body { padding: 12px; }
+      .today-panel { padding: 12px; }
+      .metric-pill { padding: 6px 8px; font-size: 13px; }
+      .vtab { padding: 6px 10px; font-size: 10px; }
+      .sidebar { width: 260px; }
     }
 
     /* ================================================================
@@ -1781,7 +1910,49 @@
         <input type="password" id="login-password" class="form-input" placeholder="Enter your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')handleLogin()" />
       </div>
       <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="handleLogin()"><i class="ti ti-login"></i> &nbsp;Sign In to CRM</button>
-      <div class="login-footer" style="margin-top:16px;">Authorized personnel only &bull; Los Cabos Tours &bull; All activity is logged</div>
+      <div style="text-align:center; margin-top:14px;">
+        <a href="#" onclick="showForgotModal(); return false;" style="color:var(--gold); font-size:12px; text-decoration:none; opacity:0.8;">Forgot username or password?</a>
+      </div>
+      <div class="login-footer" style="margin-top:12px;">Authorized personnel only &bull; Los Cabos Tours &bull; All activity is logged</div>
+    </div>
+  </div>
+
+  <!-- =================== FORGOT CREDENTIALS MODAL =================== -->
+  <div id="forgot-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; display:none; align-items:center; justify-content:center;">
+    <div style="background:var(--navy-medium); border:var(--border); border-radius:var(--radius-lg); padding:32px; width:100%; max-width:400px; margin:20px; box-shadow:var(--shadow);">
+      <div style="text-align:center; margin-bottom:20px;">
+        <div style="width:52px; height:52px; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;"><i class="ti ti-key" style="font-size:22px; color:var(--gold);"></i></div>
+        <h3 style="font-family:Cinzel,serif; color:var(--text); font-size:16px; margin-bottom:6px;">Account Recovery</h3>
+        <p style="color:var(--text-muted); font-size:12px; line-height:1.5;">Enter your registered phone number or email and we will send you a recovery code.</p>
+      </div>
+      <div id="forgot-step-1">
+        <div style="display:flex; gap:10px; margin-bottom:16px;">
+          <button id="forgot-tab-phone" onclick="switchForgotTab('phone')" style="flex:1; padding:8px; border-radius:var(--radius-md); border:1px solid var(--gold); background:rgba(201,168,76,0.15); color:var(--gold); font-size:12px; cursor:pointer; font-weight:600;"><i class="ti ti-device-mobile"></i> Phone / SMS</button>
+          <button id="forgot-tab-email" onclick="switchForgotTab('email')" style="flex:1; padding:8px; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,0.1); background:transparent; color:var(--text-muted); font-size:12px; cursor:pointer;"><i class="ti ti-mail"></i> Email</button>
+        </div>
+        <div id="forgot-phone-section">
+          <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Your Phone Number (WhatsApp)</label>
+          <input id="forgot-phone-input" type="tel" placeholder="+52 664 123 4567" style="width:100%; padding:10px 12px; background:var(--navy-light); border:var(--border); border-radius:var(--radius-md); color:var(--text); font-size:13px; margin-bottom:14px;" />
+          <button onclick="sendForgotRecovery('phone')" style="width:100%; padding:10px; background:var(--whatsapp); border:none; border-radius:var(--radius-md); color:#fff; font-size:13px; font-weight:600; cursor:pointer;"><i class="ti ti-brand-whatsapp"></i> &nbsp;Send Recovery via WhatsApp</button>
+        </div>
+        <div id="forgot-email-section" style="display:none;">
+          <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Your Email Address</label>
+          <input id="forgot-email-input" type="email" placeholder="you@example.com" style="width:100%; padding:10px 12px; background:var(--navy-light); border:var(--border); border-radius:var(--radius-md); color:var(--text); font-size:13px; margin-bottom:14px;" />
+          <button onclick="sendForgotRecovery('email')" style="width:100%; padding:10px; background:var(--ocean); border:1px solid rgba(201,168,76,0.3); border-radius:var(--radius-md); color:var(--text); font-size:13px; font-weight:600; cursor:pointer;"><i class="ti ti-send"></i> &nbsp;Send Recovery via Email</button>
+        </div>
+      </div>
+      <div id="forgot-step-2" style="display:none; text-align:center;">
+        <div style="width:52px; height:52px; background:rgba(77,184,212,0.15); border:1px solid rgba(77,184,212,0.3); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;"><i class="ti ti-check" style="font-size:22px; color:var(--teal);"></i></div>
+        <p id="forgot-sent-msg" style="color:var(--text); font-size:13px; margin-bottom:6px; font-weight:600;"></p>
+        <p style="color:var(--text-muted); font-size:12px; margin-bottom:20px;">Your administrator will reply with your credentials shortly.</p>
+        <div style="background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.2); border-radius:var(--radius-md); padding:12px; margin-bottom:16px; font-size:12px; color:var(--text-muted);">
+          <strong style="color:var(--gold);">Admin Contact:</strong><br/>
+          <i class="ti ti-device-mobile"></i> +52 664 604 1633 &nbsp;|&nbsp; <i class="ti ti-mail"></i> hugosolishcbpo2026@gmail.com
+        </div>
+      </div>
+      <div style="text-align:center; margin-top:16px;">
+        <a href="#" onclick="hideForgotModal(); return false;" style="color:var(--text-muted); font-size:12px; text-decoration:none;">Back to Login</a>
+      </div>
     </div>
   </div>
 
@@ -1869,6 +2040,9 @@
       </div>
     </aside>
 
+    <!-- Mobile sidebar backdrop -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
     <!-- Main Workspace -->
     <main class="main-content">
       
@@ -1882,6 +2056,10 @@
         </div>
         
         <div class="header-metrics">
+          <div class="sync-chip" id="sync-status-chip" title="Cloud sync inactive" onclick="navigate('settings')">
+            <i class="ti ti-cloud"></i>
+            <span>Sync</span>
+          </div>
           <div class="metric-pill" id="badge-arrivals" title="Click to view today's arrivals" onclick="navigate('arrivals')">
             <i class="ti ti-plane-arrival"></i>
             <span id="metric-arrivals-val">0 Arrivals Today</span>
@@ -2347,11 +2525,12 @@
     ];
 
     const DEFAULT_USERS = [
-      { id: "U-001", username: "developer", password: "Admin2026", name: "Developer", role: "superadmin", email: "hugosolishcbpo2026@gmail.com", active: true, createdAt: "2026-01-01" },
-      { id: "U-002", username: "ana", password: "Cabos2026", name: "Ana Calderon", role: "admin", email: "ana@loscabostours.com", active: true, createdAt: "2026-01-01" },
-      { id: "U-003", username: "carlos", password: "Runner2026", name: "Carlos Runner", role: "staff", email: "carlos@loscabostours.com", active: true, createdAt: "2026-01-01" },
-      { id: "U-004", username: "sofia", password: "Lobby2026", name: "Sofia Lobby Host", role: "staff", email: "sofia@loscabostours.com", active: true, createdAt: "2026-01-01" },
-      { id: "U-005", username: "manuel", password: "Drive2026", name: "Manuel Driver", role: "staff", email: "manuel@loscabostours.com", active: true, createdAt: "2026-01-01" }
+      { id: "U-001", username: "developer", password: "Admin2026", name: "Developer", role: "superadmin", email: "hugosolishcbpo2026@gmail.com", phone: "6646041633", active: true, createdAt: "2026-01-01", credV: 1 },
+      { id: "U-002", username: "ana", password: "Cabos2026", name: "Ana Calderon", role: "admin", email: "ana@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
+      { id: "U-003", username: "carlos", password: "Runner2026", name: "Carlos Runner", role: "staff", email: "carlos@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
+      { id: "U-004", username: "sofia", password: "Lobby2026", name: "Sofia Lobby Host", role: "staff", email: "sofia@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
+      { id: "U-005", username: "manuel", password: "Drive2026", name: "Manuel Driver", role: "staff", email: "manuel@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
+      { id: "U-006", username: "leopobleteceo", password: "2026LosCabosTours2026", name: "Leo Poblete", role: "admin", email: "Leo@loscabostours.com", phone: "+1 (555) 123-4567", active: true, createdAt: "2026-01-01", credV: 1 }
     ];
 
     const ROLE_ACCESS = {
@@ -2523,11 +2702,193 @@
       return { total, netCost, profit, operatorId: item.operatorId };
     }
 
-    function initializeDB() {
-      // Always seed users if not present (independent of CRM data reset)
-      if (!localStorage.getItem("cabo_users")) {
-        localStorage.setItem("cabo_users", JSON.stringify(DEFAULT_USERS));
+    // ================================================================
+    //  FIREBASE CONFIG — edit through Settings > Cloud Sync inside the app.
+    //  Do NOT edit this block manually. Config is stored in localStorage.
+    // ================================================================
+    var FIREBASE_CONFIG = (function() {
+      try {
+        var c = JSON.parse(localStorage.getItem("cabo_cloud_config") || "null");
+        if (c && c.apiKey) return c;
+      } catch(e) {}
+      return { apiKey:"", authDomain:"", databaseURL:"", projectId:"",
+               storageBucket:"", messagingSenderId:"", appId:"" };
+    })();
+
+    // ----------------------------------------------------------------
+    //  CloudSync — mirrors every localStorage write to Firebase and
+    //  pushes changes from any device back within ~500ms.
+    //  Zero impact when not configured.
+    // ----------------------------------------------------------------
+    var CloudSync = (function() {
+      var _db      = null;
+      var _origSet = null;
+      var _writing = false;
+      var _timer   = null;
+      var KEYS = ["cabo_users","cabo_guests","cabo_bookings",
+                  "cabo_tasks","cabo_operators","cabo_resorts","cabo_settings"];
+
+      function _configured() {
+        return !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.trim() &&
+                  FIREBASE_CONFIG.databaseURL && FIREBASE_CONFIG.databaseURL.trim());
       }
+      function _modalOpen() {
+        if (document.querySelector(".modal-overlay.open")) return true;
+        var d = document.getElementById("guest-drawer-overlay");
+        return !!(d && d.classList.contains("open"));
+      }
+      function _setChip(on) {
+        var c = document.getElementById("sync-status-chip");
+        if (!c) return;
+        if (on) { c.className = "sync-chip active"; c.title = "Cloud sync active — all devices in sync"; }
+        else { c.className = "sync-chip"; c.title = "Cloud sync inactive"; }
+      }
+      function _refresh() {
+        clearTimeout(_timer);
+        _timer = setTimeout(function() {
+          try {
+            if (!getCurrentUser || !getCurrentUser()) return;
+            if (_modalOpen()) return;
+            updateHeaderCounters();
+            navigate(currentView);
+          } catch(e) {}
+        }, 400);
+      }
+      function _wire(db) {
+        _db = db;
+        _origSet = localStorage.setItem.bind(localStorage);
+        localStorage.setItem = function(k, v) {
+          _origSet(k, v);
+          if (!_writing && KEYS.indexOf(k) !== -1) {
+            try { _db.ref("aetherion/" + k).set(v); } catch(e) {}
+          }
+        };
+        // On connect: if Firebase is empty, bootstrap it with local data
+        _db.ref("aetherion/cabo_guests").once("value")
+          .then(function(s) { if (!s.exists()) _pushAll(); _listen(); })
+          .catch(function() { _listen(); });
+      }
+      function _pushAll() {
+        KEYS.forEach(function(k) {
+          var v = localStorage.getItem(k);
+          if (v) try { _db.ref("aetherion/" + k).set(v); } catch(e) {}
+        });
+      }
+      function _listen() {
+        KEYS.forEach(function(k) {
+          _db.ref("aetherion/" + k).on("value", function(snap) {
+            var v = snap.val();
+            if (v == null || v === localStorage.getItem(k)) return;
+            _writing = true;
+            try { _origSet(k, v); } catch(e) {}
+            _writing = false;
+            _refresh();
+          });
+        });
+      }
+      function _loadScript(src, cb) {
+        var s = document.createElement("script");
+        s.src = src; s.onload = cb;
+        s.onerror = function() { console.warn("[Aetherion] Could not load " + src); };
+        document.head.appendChild(s);
+      }
+      function _initGun(self) {
+        var NS_GUN = "aetherion-lct-crm-v1";
+        _loadScript("https://cdn.jsdelivr.net/npm/gun/gun.js", function() {
+          try {
+            var gun = new Gun({
+              peers: [
+                "https://peer.wallie.io/gun",
+                "https://relay.peer.ooo/gun"
+              ],
+              localStorage: false,
+              radisk: false
+            });
+            var ns = gun.get(NS_GUN);
+            var origSet = localStorage.setItem.bind(localStorage);
+            var writing = false;
+            localStorage.setItem = function(k, v) {
+              origSet(k, v);
+              if (!writing && KEYS.indexOf(k) !== -1) {
+                try { ns.get(k).put(v); } catch(e) {}
+              }
+            };
+            KEYS.forEach(function(k) {
+              ns.get(k).on(function(remote) {
+                if (!remote || remote === localStorage.getItem(k)) return;
+                writing = true;
+                try { origSet(k, remote); } catch(e) {}
+                writing = false;
+                _refresh();
+              });
+            });
+            ns.get("cabo_guests").once(function(existing) {
+              if (!existing) {
+                KEYS.forEach(function(k) {
+                  var v = localStorage.getItem(k);
+                  if (v) try { ns.get(k).put(v); } catch(e) {}
+                });
+              }
+            });
+            self.active = true;
+            _setChip(true);
+            console.log("[Aetherion] Cross-device sync active (Gun.js)");
+          } catch(e) {
+            console.warn("[Aetherion] Gun.js sync failed:", e.message);
+            _setChip(false);
+          }
+        });
+      }
+      return {
+        active: false,
+        init: function() {
+          var self = this;
+          if (_configured()) {
+            _loadScript("https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js", function() {
+              _loadScript("https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js", function() {
+                try {
+                  var app = (firebase.apps && firebase.apps.length) ? firebase.app()
+                            : firebase.initializeApp(FIREBASE_CONFIG);
+                  _wire(firebase.database(app));
+                  self.active = true;
+                  _setChip(true);
+                  console.log("[Aetherion] Cross-device sync active (Firebase)");
+                } catch(e) {
+                  console.warn("[Aetherion] Firebase sync failed, falling back to Gun.js:", e.message);
+                  _initGun(self);
+                }
+              });
+            });
+          } else {
+            _initGun(self);
+          }
+        }
+      };
+    })();
+
+    function initializeDB() {
+      // Always merge DEFAULT_USERS so any browser always has the base team accounts.
+      // If a default user already exists but the default has a higher credV, update
+      // their identity/credentials while preserving any custom permissions set via UI.
+      const storedUsers = JSON.parse(localStorage.getItem("cabo_users") || "[]");
+      DEFAULT_USERS.forEach(function(du) {
+        const idx = storedUsers.findIndex(function(u) { return u.id === du.id; });
+        if (idx === -1) {
+          storedUsers.push(du);
+        } else if ((du.credV || 1) > (storedUsers[idx].credV || 1)) {
+          storedUsers[idx] = Object.assign({}, storedUsers[idx], {
+            username: du.username,
+            password: du.password,
+            name: du.name,
+            email: du.email,
+            phone: du.phone,
+            role: du.role,
+            active: du.active,
+            credV: du.credV
+          });
+        }
+      });
+      localStorage.setItem("cabo_users", JSON.stringify(storedUsers));
       if (localStorage.getItem("cabo_crm_initialized")) return;
       const sampleGuests = [
         { id: "G-1001", name: "Marcus Sterling", email: "msterling@outlook.com", phone: "+1 (512) 555-8839", hotel: "Pueblo Bonito Sunset Beach", room: "Suite 4124", checkIn: "2026-05-20", checkOut: "2026-05-27", guestsCount: 4, status: "Active", notes: "Celebrating 10th anniversary. Prefers top-shelf tequila, ocean views, and requested late checkout." },
@@ -3164,7 +3525,38 @@ See you in Cabo! ☀️`;
       initializeCRM();
     });
 
+    // Keys that carry CRM data — a change to any of these should refresh all open tabs
+    const CRM_DATA_KEYS = [
+      "cabo_users", "cabo_guests", "cabo_bookings",
+      "cabo_tasks", "cabo_operators", "cabo_resorts", "cabo_settings"
+    ];
+
+    // Re-render the current view without disrupting open modals/drawers
+    let _tabSyncTimer = null;
+    function _refreshView() {
+      clearTimeout(_tabSyncTimer);
+      _tabSyncTimer = setTimeout(function() {
+        if (!getCurrentUser()) return;
+        if (document.querySelector(".modal-overlay.open")) return;
+        const drawer = document.getElementById("guest-drawer-overlay");
+        if (drawer && drawer.classList.contains("open")) return;
+        updateHeaderCounters();
+        navigate(currentView);
+      }, 150);
+    }
+
     function initializeCRM() {
+      // Start cross-device sync (Firebase) — does nothing if config not filled in
+      CloudSync.init();
+
+      // Listen for data changes made in any other open tab and refresh this one
+      if (!window._crmTabSyncActive) {
+        window._crmTabSyncActive = true;
+        window.addEventListener("storage", function(e) {
+          if (CRM_DATA_KEYS.includes(e.key)) _refreshView();
+        });
+      }
+
       const todayStr = new Date().toISOString().split('T')[0];
       const checkinEl = document.getElementById("form-guest-checkin");
       if (checkinEl) checkinEl.value = todayStr;
@@ -3197,7 +3589,18 @@ See you in Cabo! ☀️`;
 
     function toggleSidebar() {
       const sidebar = document.getElementById("app-sidebar");
-      sidebar.classList.toggle("open");
+      const overlay = document.getElementById("sidebar-overlay");
+      const isOpen = sidebar.classList.toggle("open");
+      if (overlay) overlay.classList.toggle("open", isOpen);
+    }
+
+    function closeSidebarOnMobile() {
+      if (window.innerWidth <= 768) {
+        const sidebar = document.getElementById("app-sidebar");
+        const overlay = document.getElementById("sidebar-overlay");
+        sidebar.classList.remove("open");
+        if (overlay) overlay.classList.remove("open");
+      }
     }
 
     function resetDatabase() {
@@ -3244,6 +3647,7 @@ See you in Cabo! ☀️`;
       if (view === "guests-in-town") document.getElementById("badge-intown").classList.add("active-pill");
       if (view === "alerts") document.getElementById("badge-alerts").classList.add("active-pill");
       document.getElementById("app-sidebar").classList.remove("open");
+      const _ov = document.getElementById("sidebar-overlay"); if (_ov) _ov.classList.remove("open");
       const titleMap = {
         'dashboard': 'Operations Dashboard — Live Overview',
         'guests': 'Guest & Lead Directory',
@@ -4948,7 +5352,55 @@ See you in Cabo! ☀️`;
               </div>`;
           }).join("");
 
+      const syncConfigured = !!(FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.trim());
+      const syncActiveHTML = syncConfigured ? `
+        <div style="background:rgba(91,199,142,0.08); border:1px solid rgba(91,199,142,0.3); border-radius:var(--radius-lg); padding:20px; margin-bottom:24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+          <div style="width:44px; height:44px; background:rgba(91,199,142,0.15); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <i class="ti ti-cloud-check" style="font-size:22px; color:#5BC78E;"></i>
+          </div>
+          <div style="flex:1; min-width:200px;">
+            <div style="font-size:14px; font-weight:700; color:#5BC78E; margin-bottom:3px;"><i class="ti ti-check"></i> Cloud Sync Active</div>
+            <div style="font-size:12px; color:var(--text-muted);">All devices sync in real time. Project: <strong style="color:var(--text);">${FIREBASE_CONFIG.projectId || "—"}</strong></div>
+          </div>
+          <button onclick="clearCloudSync()" class="btn btn-danger" style="font-size:12px;"><i class="ti ti-unlink"></i> Disconnect Sync</button>
+        </div>` : `
+        <div style="background:rgba(201,168,76,0.06); border:2px dashed rgba(201,168,76,0.3); border-radius:var(--radius-lg); padding:24px; margin-bottom:24px;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+            <div style="width:44px; height:44px; background:rgba(201,168,76,0.12); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <i class="ti ti-cloud-off" style="font-size:22px; color:var(--gold);"></i>
+            </div>
+            <div>
+              <div style="font-size:14px; font-weight:700; color:var(--gold);">Cloud Sync Not Set Up</div>
+              <div style="font-size:12px; color:var(--text-muted);">Right now each device stores data separately. Set up sync to share data across all phones, tablets and computers in real time.</div>
+            </div>
+          </div>
+          <div style="background:rgba(0,0,0,0.2); border-radius:var(--radius-md); padding:16px; margin-bottom:16px; font-size:12px; line-height:1.8; color:var(--text-muted);">
+            <strong style="color:var(--text); display:block; margin-bottom:8px;"><i class="ti ti-list-numbers" style="color:var(--gold);"></i> How to set up (free, 5 minutes):</strong>
+            <div style="margin-bottom:4px;"><span style="color:var(--gold); font-weight:700;">1.</span> Go to <strong style="color:var(--teal);">console.firebase.google.com</strong> and sign in with a Google account</div>
+            <div style="margin-bottom:4px;"><span style="color:var(--gold); font-weight:700;">2.</span> Click <strong>Add project</strong> → give it a name (e.g. "LCT CRM") → Continue → Create project</div>
+            <div style="margin-bottom:4px;"><span style="color:var(--gold); font-weight:700;">3.</span> In the left menu click <strong>Build → Realtime Database → Create database</strong> → choose any region → <strong>Start in test mode</strong> → Enable</div>
+            <div style="margin-bottom:4px;"><span style="color:var(--gold); font-weight:700;">4.</span> Click the <strong>⚙ gear icon</strong> → Project settings → scroll to <strong>Your apps</strong> → click <strong>&lt;/&gt;</strong> → Register app → copy the <code>firebaseConfig</code> object</div>
+            <div><span style="color:var(--gold); font-weight:700;">5.</span> Paste the entire config JSON below and click <strong>Activate Sync</strong></div>
+          </div>
+          <textarea id="firebase-config-input" class="form-input" rows="7" placeholder='Paste your Firebase config here, for example:
+{
+  "apiKey": "AIzaSy...",
+  "authDomain": "your-project.firebaseapp.com",
+  "databaseURL": "https://your-project-default-rtdb.firebaseio.com",
+  "projectId": "your-project",
+  "storageBucket": "your-project.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "1:123456789:web:abc..."
+}' style="font-size:11px; font-family:monospace; resize:vertical; min-height:130px;"></textarea>
+          <button onclick="activateCloudSync()" class="btn btn-primary" style="width:100%; justify-content:center; margin-top:10px; font-size:13px;"><i class="ti ti-cloud-upload"></i> Activate Cloud Sync</button>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:8px; text-align:center;"><i class="ti ti-info-circle"></i> Do this on ONE device first. All other devices will sync automatically once they load the app.</div>
+        </div>`;
+
       container.innerHTML = `
+        <div class="settings-section">
+          <h2 class="serif" style="font-size:14px; color:var(--teal); margin-bottom:16px;"><i class="ti ti-cloud"></i> Cloud Sync — Real-Time Multi-Device</h2>
+          ${syncActiveHTML}
+        </div>
         <div class="settings-section">
           <h2 class="serif" style="font-size:14px; color:var(--gold);">Business Identity</h2>
           <div class="settings-grid">
@@ -5026,6 +5478,28 @@ See you in Cabo! ☀️`;
       `;
     }
 
+    function activateCloudSync() {
+      var raw = (document.getElementById("firebase-config-input") || {}).value || "";
+      raw = raw.trim();
+      if (!raw) { window.CaboComponents.showToast("Please paste your Firebase config first.", "error"); return; }
+      try {
+        var cfg = JSON.parse(raw);
+        if (!cfg.apiKey || !cfg.databaseURL) throw new Error("Missing apiKey or databaseURL");
+        localStorage.setItem("cabo_cloud_config", JSON.stringify(cfg));
+        window.CaboComponents.showToast("Cloud sync configured! Reloading to activate...", "success");
+        setTimeout(function() { window.location.reload(); }, 1200);
+      } catch(e) {
+        window.CaboComponents.showToast("Invalid config. Make sure you pasted the full JSON object from Firebase.", "error");
+      }
+    }
+
+    function clearCloudSync() {
+      if (!confirm("Disconnect cloud sync? This device will no longer sync with others until you set it up again.")) return;
+      localStorage.removeItem("cabo_cloud_config");
+      window.CaboComponents.showToast("Cloud sync disconnected. Reloading...", "info");
+      setTimeout(function() { window.location.reload(); }, 1000);
+    }
+
     function saveGeneralSettings() {
       const current = window.CaboDB.getSettings();
       current.businessName = document.getElementById("set-biz-name").value;
@@ -5034,6 +5508,7 @@ See you in Cabo! ☀️`;
       current.operatorName = document.getElementById("set-op-name").value;
       current.operatorRole = document.getElementById("set-op-role").value;
       window.CaboDB.saveSettings(current);
+      renderSettingsView(document.getElementById("app-view"));
       window.CaboComponents.showToast("Settings saved!", "success");
     }
 
@@ -5136,7 +5611,16 @@ See you in Cabo! ☀️`;
     //  AUTH / SESSION
     // ================================================================
     function getCurrentUser() {
-      try { return JSON.parse(sessionStorage.getItem("cabo_session") || "null"); } catch(e) { return null; }
+      try {
+        const session = JSON.parse(sessionStorage.getItem("cabo_session") || "null");
+        if (!session) return null;
+        const user = window.CaboDB.getUser(session.id);
+        if (!user || (user.credV || 1) !== (session.credV || 1)) {
+          sessionStorage.removeItem("cabo_session");
+          return null;
+        }
+        return session;
+      } catch(e) { return null; }
     }
 
     function showLoginScreen() {
@@ -5145,6 +5629,66 @@ See you in Cabo! ☀️`;
 
     function hideLoginScreen() {
       document.getElementById("login-overlay").classList.add("hidden");
+    }
+
+    function showForgotModal() {
+      const el = document.getElementById("forgot-overlay");
+      el.style.display = "flex";
+      document.getElementById("forgot-step-1").style.display = "block";
+      document.getElementById("forgot-step-2").style.display = "none";
+      document.getElementById("forgot-phone-input").value = "";
+      document.getElementById("forgot-email-input").value = "";
+    }
+
+    function hideForgotModal() {
+      document.getElementById("forgot-overlay").style.display = "none";
+    }
+
+    function switchForgotTab(tab) {
+      const phoneBtn = document.getElementById("forgot-tab-phone");
+      const emailBtn = document.getElementById("forgot-tab-email");
+      const phoneSection = document.getElementById("forgot-phone-section");
+      const emailSection = document.getElementById("forgot-email-section");
+      if (tab === "phone") {
+        phoneSection.style.display = "block";
+        emailSection.style.display = "none";
+        phoneBtn.style.background = "rgba(201,168,76,0.15)";
+        phoneBtn.style.border = "1px solid var(--gold)";
+        phoneBtn.style.color = "var(--gold)";
+        emailBtn.style.background = "transparent";
+        emailBtn.style.border = "1px solid rgba(255,255,255,0.1)";
+        emailBtn.style.color = "var(--text-muted)";
+      } else {
+        emailSection.style.display = "block";
+        phoneSection.style.display = "none";
+        emailBtn.style.background = "rgba(201,168,76,0.15)";
+        emailBtn.style.border = "1px solid var(--gold)";
+        emailBtn.style.color = "var(--gold)";
+        phoneBtn.style.background = "transparent";
+        phoneBtn.style.border = "1px solid rgba(255,255,255,0.1)";
+        phoneBtn.style.color = "var(--text-muted)";
+      }
+    }
+
+    function sendForgotRecovery(method) {
+      const ADMIN_PHONE = "526646041633";
+      const ADMIN_EMAIL = "hugosolishcbpo2026@gmail.com";
+      if (method === "phone") {
+        const phone = document.getElementById("forgot-phone-input").value.trim();
+        if (!phone) { alert("Please enter your phone number."); return; }
+        const msg = encodeURIComponent("Hello, I forgot my Aetherion CRM username or password. My phone is: " + phone + ". Please send my recovery credentials.");
+        window.open("https://wa.me/" + ADMIN_PHONE + "?text=" + msg, "_blank");
+        document.getElementById("forgot-sent-msg").textContent = "Recovery request sent via WhatsApp.";
+      } else {
+        const email = document.getElementById("forgot-email-input").value.trim();
+        if (!email) { alert("Please enter your email address."); return; }
+        const subject = encodeURIComponent("Aetherion CRM — Account Recovery Request");
+        const body = encodeURIComponent("Hello,\n\nI forgot my Aetherion CRM login credentials.\nMy registered email: " + email + "\n\nPlease send my username and a temporary password.\n\nThank you.");
+        window.open("mailto:" + ADMIN_EMAIL + "?subject=" + subject + "&body=" + body, "_blank");
+        document.getElementById("forgot-sent-msg").textContent = "Recovery email drafted. Please send it from your email app.";
+      }
+      document.getElementById("forgot-step-1").style.display = "none";
+      document.getElementById("forgot-step-2").style.display = "block";
     }
 
     function handleLogin() {
@@ -5158,7 +5702,7 @@ See you in Cabo! ☀️`;
         return;
       }
       errorEl.classList.remove("visible");
-      const session = { id: user.id, name: user.name, role: user.role, username: user.username };
+      const session = { id: user.id, name: user.name, role: user.role, username: user.username, credV: user.credV || 1 };
       sessionStorage.setItem("cabo_session", JSON.stringify(session));
       hideLoginScreen();
       initializeCRM();
@@ -5389,11 +5933,18 @@ See you in Cabo! ☀️`;
         });
       });
 
-      const user = { id: id || null, name, username, password, email, phone, jobTitle, role, active, permissions, createdAt: new Date().toISOString().split("T")[0] };
+      const existingUser = id ? window.CaboDB.getUser(id) : null;
+      const credentialsChanged = existingUser && (existingUser.username !== username || existingUser.password !== password);
+      const newCredV = existingUser ? ((existingUser.credV || 1) + (credentialsChanged ? 1 : 0)) : 1;
+      const user = { id: id || null, name, username, password, email, phone, jobTitle, role, active, permissions, createdAt: new Date().toISOString().split("T")[0], credV: newCredV };
       window.CaboDB.saveUser(user);
       closeUserModal();
       navigate("users");
-      window.CaboComponents.showToast("User " + name + " saved with custom permissions.", "success");
+      if (credentialsChanged) {
+        window.CaboComponents.showToast("Credentials updated. " + name + " will be required to log in again.", "info");
+      } else {
+        window.CaboComponents.showToast("User " + name + " saved with custom permissions.", "success");
+      }
       window.CaboDB.logActivity(null, "system", "User account " + (id ? "updated" : "created") + ": " + name + " (@" + username + ") role: " + role, {});
     }
 
