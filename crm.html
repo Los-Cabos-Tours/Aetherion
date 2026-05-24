@@ -3265,7 +3265,7 @@ See you in Cabo! ☀️`;
                 <span>Scheduled: ${t.date} ${t.time}</span>
                 <div class="tbl-actions">
                   <button onclick="openTaskWizard('${guestId}', '${t.id}')" class="tbl-btn tbl-btn-edit"><i class="ti ti-edit"></i> Edit</button>
-                  <button onclick="confirmDeleteTask('${t.id}', '${guestId}')" class="tbl-btn tbl-btn-delete"><i class="ti ti-trash"></i> Del</button>
+                  <button onclick="confirmDeleteTask('${t.id}', '${guestId}')" class="tbl-btn tbl-btn-delete"><i class="ti ti-trash"></i> Delete</button>
                 </div>
               </div>
             </div>
@@ -4281,7 +4281,7 @@ See you in Cabo! ☀️`;
             ? `<button onclick="event.stopPropagation(); openTaskWizard('', '${t.id}')" class="tbl-btn tbl-btn-edit" style="font-size:10px; padding:3px 10px;"><i class="ti ti-edit"></i> Edit</button>`
             : "";
           const deleteBtn = canDeleteTask
-            ? `<button onclick="event.stopPropagation(); confirmDeleteTask('${t.id}')" class="tbl-btn tbl-btn-delete" style="font-size:10px; padding:3px 8px;"><i class="ti ti-trash"></i></button>`
+            ? `<button onclick="event.stopPropagation(); confirmDeleteTask('${t.id}')" class="tbl-btn tbl-btn-delete" style="font-size:10px; padding:3px 8px;"><i class="ti ti-trash"></i> Delete</button>`
             : "";
 
           const statusColors = { "Todo": "var(--coral)", "In Progress": "var(--gold)", "Completed": "var(--teal)" };
@@ -5681,7 +5681,7 @@ See you in Cabo! ☀️`;
             <div style="margin-bottom:8px; font-size:11px; color:var(--text-muted);">Access: ${accessedModules || '<em>No tabs</em>'}</div>
             <div class="user-card-actions">
               <button onclick="openUserModal('${u.id}')" class="btn btn-secondary" style="font-size:11px; padding:5px 12px;"><i class="ti ti-edit"></i> Edit Permissions</button>
-              ${!isCurrentUser ? `<button onclick="confirmDeleteUser('${u.id}')" class="btn btn-danger" style="font-size:11px; padding:5px 12px;"><i class="ti ti-trash"></i> Delete</button>` : ""}
+              ${!isCurrentUser ? `<button onclick="confirmDeleteUser('${u.id}')" class="btn" style="font-size:11px; padding:5px 12px; background:#c0392b; color:#fff; border:none;"><i class="ti ti-trash"></i> Delete User</button>` : ""}
             </div>
           </div>
         `;
@@ -5980,7 +5980,7 @@ See you in Cabo! ☀️`;
             </div>
             <div class="assistant-card-actions">
               <button onclick="openGuestDrawer('${g.id}')" class="tbl-btn tbl-btn-view" style="font-size:10px;"><i class="ti ti-eye"></i> View</button>
-              <a href="https://wa.me/${g.phone.replace(/\D/g,"")}" target="_blank" class="tbl-btn tbl-btn-wa" style="font-size:10px;"><i class="ti ti-brand-whatsapp"></i></a>
+              <a href="https://wa.me/${g.phone.replace(/\D/g,"")}" target="_blank" class="tbl-btn tbl-btn-wa" style="font-size:10px;"><i class="ti ti-brand-whatsapp"></i> WhatsApp</a>
             </div>
           </div>`;
         }).join("");
@@ -6078,7 +6078,7 @@ See you in Cabo! ☀️`;
             <div class="assistant-card-meta">${o.phone} &bull; ${o.email} &bull; Net rate: ${Math.round((1 - o.netRate) * 100)}% margin</div>
           </div>
           <div class="assistant-card-actions">
-            <a href="https://wa.me/${o.phone.replace(/\D/g,"")}" target="_blank" class="tbl-btn tbl-btn-wa" style="font-size:10px;"><i class="ti ti-brand-whatsapp"></i></a>
+            <a href="https://wa.me/${o.phone.replace(/\D/g,"")}" target="_blank" class="tbl-btn tbl-btn-wa" style="font-size:10px;"><i class="ti ti-brand-whatsapp"></i> WhatsApp</a>
           </div>
         </div>`).join("");
         sections.push(`<div class="assistant-result-group"><div class="assistant-result-group-title"><i class="ti ti-ship"></i> Partner Operators (${matchedOps.length})</div>${cards}</div>`);
