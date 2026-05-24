@@ -2818,7 +2818,7 @@
       // Always merge DEFAULT_USERS so any browser always has the base team accounts.
       // If a default user already exists but the default has a higher credV, update
       // their identity/credentials while preserving any custom permissions set via UI.
-      const storedUsers = JSON.parse(localStorage.getItem("cabo_users") || "[]");
+      let storedUsers = JSON.parse(localStorage.getItem("cabo_users") || "[]");
       DEFAULT_USERS.forEach(function(du) {
         const idx = storedUsers.findIndex(function(u) { return u.id === du.id; });
         if (idx === -1) {
@@ -2835,6 +2835,13 @@
             credV: du.credV
           });
         }
+      });
+      // Remove duplicate usernames — keep the one whose ID matches a DEFAULT_USER, or the first occurrence
+      const defaultIds = DEFAULT_USERS.map(function(u){ return u.id; });
+      const seenUsernames = {};
+      storedUsers = storedUsers.filter(function(u) {
+        if (!seenUsernames[u.username]) { seenUsernames[u.username] = true; return true; }
+        return defaultIds.indexOf(u.id) !== -1;
       });
       localStorage.setItem("cabo_users", JSON.stringify(storedUsers));
       if (localStorage.getItem("cabo_crm_initialized")) return;
@@ -5674,7 +5681,7 @@ See you in Cabo! ☀️`;
             <div style="margin-bottom:8px; font-size:11px; color:var(--text-muted);">Access: ${accessedModules || '<em>No tabs</em>'}</div>
             <div class="user-card-actions">
               <button onclick="openUserModal('${u.id}')" class="btn btn-secondary" style="font-size:11px; padding:5px 12px;"><i class="ti ti-edit"></i> Edit Permissions</button>
-              ${!isCurrentUser ? `<button onclick="confirmDeleteUser('${u.id}')" class="btn btn-danger btn-icon-only" title="Delete User"><i class="ti ti-trash"></i></button>` : ""}
+              ${!isCurrentUser ? `<button onclick="confirmDeleteUser('${u.id}')" class="btn btn-danger" style="font-size:11px; padding:5px 12px;"><i class="ti ti-trash"></i> Delete</button>` : ""}
             </div>
           </div>
         `;
