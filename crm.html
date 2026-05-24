@@ -2083,10 +2083,6 @@
         </div>
         
         <div class="header-metrics">
-          <div class="sync-chip" id="sync-status-chip" title="Cloud sync inactive" onclick="navigate('settings')">
-            <i class="ti ti-cloud"></i>
-            <span>Sync</span>
-          </div>
           <div class="metric-pill" id="badge-arrivals" title="Click to view today's arrivals" onclick="navigate('arrivals')">
             <i class="ti ti-plane-arrival"></i>
             <span id="metric-arrivals-val">0 Arrivals Today</span>
@@ -2730,90 +2726,91 @@
     }
 
     // ----------------------------------------------------------------
-    //  CloudSync — automatic peer-to-peer sync across all devices.
-    //  No setup required.
+    //  GoogleSync — syncs all CRM data through a Google Apps Script
+    //  web app backed by Google Sheets (user's own Google account).
+    //  Configure the script URL once in Settings > Data Management.
     // ----------------------------------------------------------------
     var CloudSync = (function() {
-      var _timer   = null;
       var KEYS = ["cabo_users","cabo_guests","cabo_bookings",
                   "cabo_tasks","cabo_operators","cabo_resorts","cabo_settings"];
+      var _url = "";
+      var _pollTimer = null;
+      var _writing = false;
+      var _origSet = null;
 
+      function _getUrl() {
+        return localStorage.getItem("cabo_sync_url") || "";
+      }
       function _modalOpen() {
         if (document.querySelector(".modal-overlay.open")) return true;
         var d = document.getElementById("guest-drawer-overlay");
         return !!(d && d.classList.contains("open"));
       }
-      function _setChip(on) {
-        var c = document.getElementById("sync-status-chip");
-        if (!c) return;
-        if (on) { c.className = "sync-chip active"; c.title = "Cloud sync active — all devices in sync"; }
-        else { c.className = "sync-chip"; c.title = "Cloud sync inactive"; }
-      }
       function _refresh() {
-        clearTimeout(_timer);
-        _timer = setTimeout(function() {
-          try {
-            if (!getCurrentUser || !getCurrentUser()) return;
-            if (_modalOpen()) return;
-            updateHeaderCounters();
-            navigate(currentView);
-          } catch(e) {}
-        }, 400);
+        try {
+          if (!getCurrentUser || !getCurrentUser()) return;
+          if (_modalOpen()) return;
+          updateHeaderCounters();
+          navigate(currentView);
+        } catch(e) {}
       }
-      function _loadScript(src, cb) {
-        var s = document.createElement("script");
-        s.src = src; s.onload = cb;
-        s.onerror = function() { console.warn("[CRM] Could not load " + src); };
-        document.head.appendChild(s);
+      function _push(key, value) {
+        if (!_url) return;
+        var payload = {};
+        payload[key] = value;
+        fetch(_url, {
+          method: "POST",
+          body: JSON.stringify(payload)
+        }).catch(function(){});
+      }
+      function _pull() {
+        if (!_url) return;
+        fetch(_url + "?t=" + Date.now())
+          .then(function(r){ return r.json(); })
+          .then(function(remote) {
+            var changed = false;
+            KEYS.forEach(function(k) {
+              if (remote[k] && remote[k] !== localStorage.getItem(k)) {
+                _writing = true;
+                _origSet(k, remote[k]);
+                _writing = false;
+                changed = true;
+              }
+            });
+            if (changed) _refresh();
+          })
+          .catch(function(){});
+      }
+      function _startPolling() {
+        clearInterval(_pollTimer);
+        _pollTimer = setInterval(_pull, 30000);
       }
       return {
         active: false,
         init: function() {
-          var self = this;
-          var NS_GUN = "aetherion-lct-crm-v1";
-          _loadScript("https://cdn.jsdelivr.net/npm/gun/gun.js", function() {
-            try {
-              var gun = new Gun({
-                peers: [
-                  "https://peer.wallie.io/gun",
-                  "https://relay.peer.ooo/gun"
-                ],
-                localStorage: false,
-                radisk: false
-              });
-              var ns = gun.get(NS_GUN);
-              var origSet = localStorage.setItem.bind(localStorage);
-              var writing = false;
-              localStorage.setItem = function(k, v) {
-                origSet(k, v);
-                if (!writing && KEYS.indexOf(k) !== -1) {
-                  try { ns.get(k).put(v); } catch(e) {}
-                }
-              };
-              KEYS.forEach(function(k) {
-                ns.get(k).on(function(remote) {
-                  if (!remote || remote === localStorage.getItem(k)) return;
-                  writing = true;
-                  try { origSet(k, remote); } catch(e) {}
-                  writing = false;
-                  _refresh();
-                });
-              });
-              ns.get("cabo_guests").once(function(existing) {
-                if (!existing) {
-                  KEYS.forEach(function(k) {
-                    var v = localStorage.getItem(k);
-                    if (v) try { ns.get(k).put(v); } catch(e) {}
-                  });
-                }
-              });
-              self.active = true;
-              _setChip(true);
-            } catch(e) {
-              console.warn("[CRM] Sync failed:", e.message);
-              _setChip(false);
-            }
-          });
+          _url = _getUrl();
+          if (!_url) return;
+          _origSet = localStorage.setItem.bind(localStorage);
+          localStorage.setItem = function(k, v) {
+            _origSet(k, v);
+            if (!_writing && KEYS.indexOf(k) !== -1) _push(k, v);
+          };
+          _pull();
+          _startPolling();
+          this.active = true;
+        },
+        reload: function() {
+          _url = _getUrl();
+          if (_url && !this.active) {
+            _origSet = _origSet || localStorage.setItem.bind(localStorage);
+            localStorage.setItem = function(k, v) {
+              _origSet(k, v);
+              if (!_writing && KEYS.indexOf(k) !== -1) _push(k, v);
+            };
+            this.active = true;
+          }
+          _pull();
+          _startPolling();
         }
       };
     })();
@@ -5362,6 +5359,15 @@ See you in Cabo! ☀️`;
         </div>
 
         <div class="settings-section">
+          <h2 class="serif" style="font-size:14px; color:var(--gold);">Google Account Sync</h2>
+          <p style="font-size:12px; color:var(--text-muted); margin:8px 0 12px;">Paste your Google Apps Script URL below. All devices with this URL will share the same data automatically.</p>
+          <div class="inline-add-row">
+            <input id="sync-url-input" type="text" class="form-input" placeholder="https://script.google.com/macros/s/..." value="${localStorage.getItem('cabo_sync_url') || ''}" />
+            <button onclick="saveSyncUrl()" class="btn btn-primary"><i class="ti ti-check"></i> Save</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
           <h2 class="serif" style="font-size:14px; color:var(--gold);">Data Management</h2>
           <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;">
             <button onclick="exportGuestsCSV()" class="btn btn-secondary"><i class="ti ti-users"></i> Export Guests CSV</button>
@@ -5373,6 +5379,13 @@ See you in Cabo! ☀️`;
       `;
     }
 
+
+    function saveSyncUrl() {
+      var url = (document.getElementById("sync-url-input").value || "").trim();
+      localStorage.setItem("cabo_sync_url", url);
+      CloudSync.reload();
+      window.CaboComponents.showToast(url ? "Sync URL saved — syncing now." : "Sync URL cleared.", "success");
+    }
 
     function saveGeneralSettings() {
       const current = window.CaboDB.getSettings();
