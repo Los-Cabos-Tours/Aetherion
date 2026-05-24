@@ -2551,8 +2551,7 @@
       { id: "U-002", username: "ana", password: "Cabos2026", name: "Ana Calderon", role: "admin", email: "ana@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
       { id: "U-003", username: "carlos", password: "Runner2026", name: "Carlos Runner", role: "staff", email: "carlos@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
       { id: "U-004", username: "sofia", password: "Lobby2026", name: "Sofia Lobby Host", role: "staff", email: "sofia@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
-      { id: "U-005", username: "manuel", password: "Drive2026", name: "Manuel Driver", role: "staff", email: "manuel@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
-      { id: "U-006", username: "leopobleteceo", password: "2026LosCabosTours2026", name: "Leo Poblete", role: "admin", email: "Leo@loscabostours.com", phone: "+1 (555) 123-4567", active: true, createdAt: "2026-01-01", credV: 1 }
+      { id: "U-005", username: "manuel", password: "Drive2026", name: "Manuel Driver", role: "staff", email: "manuel@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 }
     ];
 
     const ROLE_ACCESS = {
@@ -2830,7 +2829,9 @@
       // If a default user already exists but the default has a higher credV, update
       // their identity/credentials while preserving any custom permissions set via UI.
       let storedUsers = JSON.parse(localStorage.getItem("cabo_users") || "[]");
+      const deletedDefaults = JSON.parse(localStorage.getItem("cabo_deleted_defaults") || "[]");
       DEFAULT_USERS.forEach(function(du) {
+        if (deletedDefaults.indexOf(du.id) !== -1) return; // user was explicitly deleted, never re-add
         const idx = storedUsers.findIndex(function(u) { return u.id === du.id; });
         if (idx === -1) {
           storedUsers.push(du);
@@ -2847,12 +2848,11 @@
           });
         }
       });
-      // Remove duplicate usernames — keep the one whose ID matches a DEFAULT_USER, or the first occurrence
-      const defaultIds = DEFAULT_USERS.map(function(u){ return u.id; });
+      // Remove duplicate usernames — keep first occurrence
       const seenUsernames = {};
       storedUsers = storedUsers.filter(function(u) {
         if (!seenUsernames[u.username]) { seenUsernames[u.username] = true; return true; }
-        return defaultIds.indexOf(u.id) !== -1;
+        return false;
       });
       localStorage.setItem("cabo_users", JSON.stringify(storedUsers));
       if (localStorage.getItem("cabo_crm_initialized")) return;
@@ -3068,6 +3068,12 @@
         let users = JSON.parse(localStorage.getItem("cabo_users") || "[]");
         users = users.filter(u => u.id !== id);
         localStorage.setItem("cabo_users", JSON.stringify(users));
+        const isDefault = DEFAULT_USERS.some(u => u.id === id);
+        if (isDefault) {
+          const deleted = JSON.parse(localStorage.getItem("cabo_deleted_defaults") || "[]");
+          if (deleted.indexOf(id) === -1) deleted.push(id);
+          localStorage.setItem("cabo_deleted_defaults", JSON.stringify(deleted));
+        }
       },
 
       // Activity Log
