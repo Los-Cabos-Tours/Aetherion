@@ -2496,6 +2496,47 @@
     </div>
   </div>
 
+  <!-- Operator Modal -->
+  <div class="modal-overlay" id="operator-modal-overlay">
+    <div class="modal-box" style="max-width:520px; width:96vw;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="operator-modal-title">Add Partner Operator</h2>
+        <button class="modal-close" onclick="closeOperatorModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="operator-form" onsubmit="saveOperatorForm(event)">
+          <input type="hidden" id="form-op-id" />
+          <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group form-full" style="grid-column:span 2;">
+              <label class="form-label">Operator Name *</label>
+              <input type="text" id="form-op-name" class="form-input" required placeholder="e.g. Cabo Adventures" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone</label>
+              <input type="text" id="form-op-phone" class="form-input" placeholder="+52 624 000 0000" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" id="form-op-email" class="form-input" placeholder="bookings@operator.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Net Rate (0.00–1.00) *</label>
+              <input type="number" id="form-op-rate" class="form-input" required min="0" max="1" step="0.01" placeholder="e.g. 0.75" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Website</label>
+              <input type="text" id="form-op-website" class="form-input" placeholder="operator.com" />
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+            <button type="button" class="btn btn-secondary" onclick="closeOperatorModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy"></i> Save Operator</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Global Toast Notification Area -->
   <div class="toast-container" id="toast-container"></div>
 
@@ -4416,6 +4457,58 @@ See you in Cabo! ☀️`;
       `;
     }
 
+    function openOperatorModal(opId) {
+      const modal = document.getElementById("operator-modal-overlay");
+      document.getElementById("form-op-id").value = opId || "";
+      document.getElementById("operator-modal-title").textContent = opId ? "Edit Partner Operator" : "Add Partner Operator";
+      if (opId) {
+        const op = window.CaboDB.getOperator(opId);
+        if (op) {
+          document.getElementById("form-op-name").value = op.name || "";
+          document.getElementById("form-op-phone").value = op.phone || "";
+          document.getElementById("form-op-email").value = op.email || "";
+          document.getElementById("form-op-rate").value = op.netRate || "";
+          document.getElementById("form-op-website").value = op.website || "";
+        }
+      } else {
+        document.getElementById("operator-form").reset();
+      }
+      modal.classList.add("open");
+    }
+    function closeOperatorModal() {
+      document.getElementById("operator-modal-overlay").classList.remove("open");
+    }
+    function saveOperatorForm(e) {
+      e.preventDefault();
+      const id = document.getElementById("form-op-id").value;
+      const operators = window.CaboDB.getOperators();
+      const op = {
+        id: id || "op-" + Date.now(),
+        name: document.getElementById("form-op-name").value.trim(),
+        phone: document.getElementById("form-op-phone").value.trim(),
+        email: document.getElementById("form-op-email").value.trim(),
+        netRate: parseFloat(document.getElementById("form-op-rate").value) || 0.75,
+        website: document.getElementById("form-op-website").value.trim()
+      };
+      if (id) {
+        const idx = operators.findIndex(o => o.id === id);
+        if (idx !== -1) operators[idx] = op; else operators.push(op);
+      } else {
+        operators.push(op);
+      }
+      localStorage.setItem("cabo_operators", JSON.stringify(operators));
+      closeOperatorModal();
+      renderOperatorsView(document.getElementById("app-view"));
+      window.CaboComponents.showToast("Operator saved.", "success");
+    }
+    function confirmDeleteOperator(id) {
+      if (!confirm("Delete this operator? This cannot be undone.")) return;
+      const operators = window.CaboDB.getOperators().filter(o => o.id !== id);
+      localStorage.setItem("cabo_operators", JSON.stringify(operators));
+      renderOperatorsView(document.getElementById("app-view"));
+      window.CaboComponents.showToast("Operator deleted.", "info");
+    }
+
     function renderOperatorsView(container) {
       const operators = window.CaboDB.getOperators();
       const bookings = window.CaboDB.getBookings().filter(b => b.bookingStatus === 'Confirmed' || b.bookingStatus === 'Completed');
@@ -4450,6 +4543,8 @@ See you in Cabo! ☀️`;
               <div class="tbl-actions">
                 <a href="${waLink}" target="_blank" class="tbl-btn tbl-btn-wa"><i class="ti ti-brand-whatsapp"></i> WhatsApp</a>
                 <a href="mailto:${op.email}" class="tbl-btn tbl-btn-email"><i class="ti ti-mail"></i> Email</a>
+                ${hasPermission("operators","edit") ? `<button onclick="openOperatorModal('${op.id}')" class="tbl-btn tbl-btn-edit"><i class="ti ti-edit"></i> Edit</button>` : ""}
+                ${hasPermission("operators","delete") ? `<button onclick="confirmDeleteOperator('${op.id}')" class="tbl-btn tbl-btn-delete"><i class="ti ti-trash"></i> Delete</button>` : ""}
               </div>
             </td>
           </tr>
@@ -4462,7 +4557,7 @@ See you in Cabo! ☀️`;
             <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">Manage partner operators, view net commission rates, and dispatch WhatsApp voucher confirmations.</p>
           </div>
           <div style="display:flex; gap:10px;">
-            ${hasPermission("operators","whatsapp") ? "" : ""}
+            ${hasPermission("operators","create") ? `<button onclick="openOperatorModal()" class="btn btn-primary"><i class="ti ti-plus"></i> Add Operator</button>` : ""}
           </div>
         </div>
         <div class="op-card-grid">
