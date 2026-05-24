@@ -4482,6 +4482,7 @@ See you in Cabo! ☀️`;
       e.preventDefault();
       const id = document.getElementById("form-op-id").value;
       const operators = window.CaboDB.getOperators();
+      const beforeOp = id ? operators.find(o => o.id === id) : null;
       const op = {
         id: id || "op-" + Date.now(),
         name: document.getElementById("form-op-name").value.trim(),
@@ -4497,14 +4498,19 @@ See you in Cabo! ☀️`;
         operators.push(op);
       }
       localStorage.setItem("cabo_operators", JSON.stringify(operators));
+      const opLabels = { name: "Name", phone: "Phone", email: "Email", netRate: "Net Rate", website: "Website" };
+      const opChanges = id ? fieldDiff(beforeOp, op, opLabels) : "";
+      window.CaboDB.logActivity(null, "system", id ? `Operator updated: ${op.name}` : `Operator added: ${op.name}`, { changes: opChanges || undefined });
       closeOperatorModal();
       renderOperatorsView(document.getElementById("app-view"));
       window.CaboComponents.showToast("Operator saved.", "success");
     }
     function confirmDeleteOperator(id) {
       if (!confirm("Delete this operator? This cannot be undone.")) return;
+      const op = window.CaboDB.getOperators().find(o => o.id === id);
       const operators = window.CaboDB.getOperators().filter(o => o.id !== id);
       localStorage.setItem("cabo_operators", JSON.stringify(operators));
+      window.CaboDB.logActivity(null, "system", "Operator deleted: " + (op ? op.name : id), {});
       renderOperatorsView(document.getElementById("app-view"));
       window.CaboComponents.showToast("Operator deleted.", "info");
     }
@@ -4650,6 +4656,16 @@ See you in Cabo! ☀️`;
       document.getElementById("guest-modal-overlay").classList.remove("open");
     }
 
+    function fieldDiff(before, after, labels) {
+      var parts = [];
+      Object.keys(labels).forEach(function(k) {
+        var bv = before && before[k] !== undefined && before[k] !== null ? String(before[k]) : "";
+        var av = after && after[k] !== undefined && after[k] !== null ? String(after[k]) : "";
+        if (bv !== av) parts.push(labels[k] + ": \"" + bv + "\" → \"" + av + "\"");
+      });
+      return parts.join(" | ");
+    }
+
     function handleGuestSubmit(e) {
       e.preventDefault();
       const guest = {
@@ -4666,8 +4682,11 @@ See you in Cabo! ☀️`;
         notes: document.getElementById("form-guest-notes").value
       };
       const isNew = !guest.id;
+      const beforeGuest = isNew ? null : window.CaboDB.getGuest(guest.id);
       const saved = window.CaboDB.saveGuest(guest);
-      window.CaboDB.logActivity(saved.id, "lead", isNew ? `New guest lead created: ${saved.name} — ${saved.hotel}` : `Profile updated: ${saved.name}`, { hotel: saved.hotel, status: saved.status });
+      const guestLabels = { name: "Name", email: "Email", phone: "Phone", hotel: "Hotel", room: "Room", checkIn: "Check-In", checkOut: "Check-Out", guestsCount: "Guests", status: "Status", notes: "Notes" };
+      const guestChanges = isNew ? "" : fieldDiff(beforeGuest, saved, guestLabels);
+      window.CaboDB.logActivity(saved.id, "lead", isNew ? `New guest lead created: ${saved.name} — ${saved.hotel}` : `Profile updated: ${saved.name}`, { hotel: saved.hotel, status: saved.status, changes: guestChanges || undefined });
       window.CaboComponents.showToast(`Guest "${saved.name}" saved!`, "success");
       closeGuestModal();
       if (currentView === 'guests') renderGuestsView(document.getElementById("app-view"));
@@ -5011,9 +5030,12 @@ See you in Cabo! ☀️`;
         notes: document.getElementById("form-booking-notes").value
       };
       const isNewBooking = !booking.id;
+      const beforeBooking = isNewBooking ? null : window.CaboDB.getBooking(booking.id);
       const saved = window.CaboDB.saveBooking(booking);
       const fmt2 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-      window.CaboDB.logActivity(saved.guestId, "booking", isNewBooking ? `Booking created: ${saved.serviceName} on ${saved.date} — ${fmt2.format(saved.totalPrice)}` : `Booking updated: ${saved.serviceName} (${saved.bookingStatus})`, { bookingId: saved.id, amount: saved.totalPrice, status: saved.bookingStatus });
+      const bookingLabels = { serviceName: "Service", date: "Date", time: "Time", adultsCount: "Adults", childrenCount: "Children", bookingStatus: "Status", paymentStatus: "Payment", operatorStatus: "Operator Status", totalPrice: "Price", notes: "Notes" };
+      const bookingChanges = isNewBooking ? "" : fieldDiff(beforeBooking, saved, bookingLabels);
+      window.CaboDB.logActivity(saved.guestId, "booking", isNewBooking ? `Booking created: ${saved.serviceName} on ${saved.date} — ${fmt2.format(saved.totalPrice)}` : `Booking updated: ${saved.serviceName} (${saved.bookingStatus})`, { bookingId: saved.id, amount: saved.totalPrice, status: saved.bookingStatus, changes: bookingChanges || undefined });
       window.CaboComponents.showToast(`Booking for "${saved.serviceName}" saved!`, "success");
       closeBookingModal();
       if (currentView === 'bookings') renderBookingsView(document.getElementById("app-view"));
@@ -5091,8 +5113,11 @@ See you in Cabo! ☀️`;
         description: document.getElementById("form-task-desc").value
       };
       const isNewTask = !task.id;
+      const beforeTask = isNewTask ? null : window.CaboDB.getTask(task.id);
       const saved = window.CaboDB.saveTask(task);
-      window.CaboDB.logActivity(saved.guestId, "task", isNewTask ? `Concierge request created: ${saved.title} [${saved.category}]` : `Task updated: ${saved.title} → ${saved.status}`, { taskId: saved.id, category: saved.category, assignedTo: saved.assignedTo });
+      const taskLabels = { title: "Title", category: "Category", date: "Date", time: "Time", status: "Status", assignedTo: "Assigned To", description: "Description" };
+      const taskChanges = isNewTask ? "" : fieldDiff(beforeTask, saved, taskLabels);
+      window.CaboDB.logActivity(saved.guestId, "task", isNewTask ? `Concierge request created: ${saved.title} [${saved.category}]` : `Task updated: ${saved.title} → ${saved.status}`, { taskId: saved.id, category: saved.category, assignedTo: saved.assignedTo, changes: taskChanges || undefined });
       window.CaboComponents.showToast("Task saved successfully.", "success");
       closeTaskModal();
       if (currentView === 'concierge') renderConciergeView(document.getElementById("app-view"));
@@ -5309,11 +5334,12 @@ See you in Cabo! ☀️`;
           const icon = iconMap[l.type] || "ti-circle-dot";
           const dt = new Date(l.timestamp).toLocaleString("en-US");
           const guestLink = l.guestId ? `<a onclick="openGuestDrawer('${l.guestId}')" style="color:var(--gold); cursor:pointer; text-decoration:none;">${l.guestName || l.guestId}</a>` : `<span style="color:var(--text-muted);">—</span>`;
+          const changesHtml = (l.meta && l.meta.changes) ? `<div style="margin-top:5px; padding:5px 8px; background:rgba(255,255,255,0.04); border-left:2px solid var(--gold-dark); border-radius:0 4px 4px 0; font-size:10px; color:var(--text-muted); line-height:1.5;"><i class="ti ti-git-diff" style="font-size:10px; margin-right:4px;"></i>${l.meta.changes}</div>` : "";
           tableRows += `<tr>
             <td><span style="font-size:11px; color:var(--text-muted);">${dt}</span></td>
             <td>${guestLink}</td>
             <td><span class="log-icon ${l.type}" style="display:inline-flex; width:22px; height:22px; font-size:11px; border-radius:50%; align-items:center; justify-content:center; margin-right:6px;"><i class="ti ${icon}"></i></span><span style="text-transform:capitalize; font-size:11px; color:var(--text-muted);">${l.type}</span></td>
-            <td style="font-size:12px;">${l.description}</td>
+            <td style="font-size:12px;">${l.description}${changesHtml}</td>
             <td style="font-size:11px; color:var(--text-muted);">${l.performedBy || "System"}</td>
             <td>
               <div class="tbl-actions">
@@ -5523,6 +5549,7 @@ See you in Cabo! ☀️`;
       s.teamMembers.push(val);
       window.CaboDB.saveSettings(s);
       document.getElementById("new-team-member").value = "";
+      window.CaboDB.logActivity(null, "system", `Team member added: ${val}`, {});
       renderSettingsView(document.getElementById("app-view"));
       window.CaboComponents.showToast(`Team member "${val}" added.`, "success");
     }
@@ -5534,6 +5561,7 @@ See you in Cabo! ☀️`;
       s.teamMembers.splice(idx, 1);
       window.CaboDB.saveSettings(s);
       editingTeamMemberIdx = -1;
+      window.CaboDB.logActivity(null, "system", `Team member removed: ${name}`, {});
       renderSettingsView(document.getElementById("app-view"));
       window.CaboComponents.showToast(`Team member "${name}" removed.`, "info");
     }
@@ -5545,6 +5573,7 @@ See you in Cabo! ☀️`;
       resorts.push(val);
       localStorage.setItem("cabo_resorts", JSON.stringify(resorts));
       document.getElementById("new-resort").value = "";
+      window.CaboDB.logActivity(null, "system", `Resort added: ${val}`, {});
       renderSettingsView(document.getElementById("app-view"));
       window.CaboComponents.showToast(`Resort "${val}" added.`, "success");
     }
@@ -5556,6 +5585,7 @@ See you in Cabo! ☀️`;
       resorts.splice(idx, 1);
       localStorage.setItem("cabo_resorts", JSON.stringify(resorts));
       editingResortIdx = -1;
+      window.CaboDB.logActivity(null, "system", `Resort removed: ${name}`, {});
       renderSettingsView(document.getElementById("app-view"));
       window.CaboComponents.showToast(`Resort "${name}" removed.`, "info");
     }
@@ -5582,6 +5612,7 @@ See you in Cabo! ☀️`;
       s.teamMembers[idx] = val;
       window.CaboDB.saveSettings(s);
       editingTeamMemberIdx = -1;
+      window.CaboDB.logActivity(null, "system", `Team member updated: "${oldVal}" → "${val}"`, {});
       renderSettingsView(document.getElementById("app-view"));
       window.CaboComponents.showToast(`Updated: "${val}"`, "success");
     }
@@ -5604,9 +5635,11 @@ See you in Cabo! ☀️`;
       const val = el ? el.value.trim() : "";
       if (!val) { window.CaboComponents.showToast("Resort name cannot be empty.", "error"); return; }
       const resorts = window.CaboDB.getResorts();
+      const oldVal = resorts[idx];
       resorts[idx] = val;
       localStorage.setItem("cabo_resorts", JSON.stringify(resorts));
       editingResortIdx = -1;
+      window.CaboDB.logActivity(null, "system", `Resort updated: "${oldVal}" → "${val}"`, {});
       renderSettingsView(document.getElementById("app-view"));
       window.CaboComponents.showToast(`Resort updated to "${val}"`, "success");
     }
