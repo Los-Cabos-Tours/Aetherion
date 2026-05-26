@@ -2857,12 +2857,15 @@
           .then(function(r) { _setChip(r.ok); })
           .catch(function() { _setChip(false); });
         } else {
+          // Google Apps Script requires no-cors mode to avoid CORS rejection.
+          // The response is opaque so we can't read it — we optimistically mark synced
+          // and let the next poll cycle verify by reading back the data.
           fetch(url, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            mode: "no-cors",
             body: JSON.stringify(payload)
           })
-          .then(function(r) { _setChip(r.ok); })
+          .then(function() { _setChip(true); })
           .catch(function() { _setChip(false); });
         }
       }
