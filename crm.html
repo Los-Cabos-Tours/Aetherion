@@ -86,6 +86,7 @@
       display: flex;
       width: 100%;
       height: 100vh;
+      height: 100dvh;
       position: relative;
     }
 
@@ -252,6 +253,7 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
+      height: 100dvh;
       overflow: hidden;
       background-color: var(--bg-dark);
     }
@@ -2094,6 +2096,7 @@
             <i class="ti ti-alert-circle"></i>
             <span id="metric-alerts-val">0 Alerts</span>
           </div>
+          <div class="sync-chip" id="sync-status-chip" title="Cross-device sync status"><i class="ti ti-cloud-off" style="font-size:12px;"></i> Local Only</div>
         </div>
       </header>
 
@@ -2542,6 +2545,16 @@
 
   <!-- ================= SCRIPTS ================= -->
   <script>
+    // Fix viewport height on iOS Safari (URL bar shrinks the viewport unpredictably)
+    (function() {
+      function setVH() {
+        document.documentElement.style.setProperty("--vh", (window.innerHeight * 0.01) + "px");
+      }
+      setVH();
+      window.addEventListener("resize", setVH);
+    })();
+  </script>
+  <script>
     /* ==========================================================================
        DATABASE CODE (js/db.js inline)
        ========================================================================== */
@@ -2772,16 +2785,36 @@
     var CloudSync = (function() {
       var KEYS = ["cabo_users","cabo_guests","cabo_bookings",
                   "cabo_tasks","cabo_operators","cabo_resorts","cabo_settings"];
-      var URL = "https://script.google.com/macros/s/AKfycbw7Ar_jS4g1MEFZjIWBAIcZajIt-uhpqTet8DTX--EUWpHyte2hrxKF3AjxQoBmhsNOyQ/exec";
       var _pollTimer = null;
+      var _debounceTimer = null;
       var _writing = false;
       var _origSet = null;
+
+      function _getUrl() {
+        var u = (localStorage.getItem("cabo_sync_url") || "").trim();
+        if (!u) return null;
+        u = u.replace(/\/$/, "");
+        // Auto-append /crm.json for bare Firebase RTDB URLs
+        if (u.match(/\.firebaseio\.com$/)) u += "/crm.json";
+        else if (!u.endsWith(".json")) u += ".json";
+        return u;
+      }
+
+      function _setChip(ok, label) {
+        var c = document.getElementById("sync-status-chip");
+        if (!c) return;
+        c.className = "sync-chip" + (ok ? " active" : "");
+        c.innerHTML = ok
+          ? "<i class=\"ti ti-cloud-check\" style=\"font-size:12px;\"></i> " + (label || "Synced")
+          : "<i class=\"ti ti-cloud-off\" style=\"font-size:12px;\"></i> " + (label || "Local Only");
+      }
 
       function _modalOpen() {
         if (document.querySelector(".modal-overlay.open")) return true;
         var d = document.getElementById("guest-drawer-overlay");
         return !!(d && d.classList.contains("open"));
       }
+
       function _refresh() {
         try {
           if (!getCurrentUser || !getCurrentUser()) return;
@@ -2790,37 +2823,53 @@
           navigate(currentView);
         } catch(e) {}
       }
+
       function _localTs() {
         return parseInt(localStorage.getItem("cabo_last_updated") || "0");
       }
-      function _pushAll() {
-        var ts = Date.now().toString();
-        var payload = { cabo_last_updated: ts };
+
+      function _push() {
+        var url = _getUrl();
+        if (!url) return;
+        var ts = Date.now();
+        var payload = { _ts: ts };
         KEYS.forEach(function(k) {
           var v = localStorage.getItem(k);
-          if (v) payload[k] = v;
+          if (v != null) payload[k] = v;
         });
-        _origSet("cabo_last_updated", ts);
-        fetch(URL, { method: "POST", body: JSON.stringify(payload) }).catch(function(){});
+        _origSet("cabo_last_updated", ts.toString());
+        _setChip(false, "Syncing…");
+        fetch(url, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        })
+        .then(function(r) {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          _setChip(true);
+        })
+        .catch(function() { _setChip(false); });
       }
-      function _pushKey(key, value) {
-        var ts = Date.now().toString();
-        var payload = { cabo_last_updated: ts };
-        payload[key] = value;
-        _origSet("cabo_last_updated", ts);
-        fetch(URL, { method: "POST", body: JSON.stringify(payload) }).catch(function(){});
-      }
+
       function _pull() {
-        fetch(URL + "?t=" + Date.now())
-          .then(function(r) { return r.json(); })
+        var url = _getUrl();
+        if (!url) { _setChip(false); return; }
+        fetch(url + "?nc=" + Date.now())
+          .then(function(r) {
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return r.json();
+          })
           .then(function(remote) {
+            if (!remote || !remote._ts) {
+              _push();
+              return;
+            }
             var localTs = _localTs();
-            var remoteTs = parseInt(remote.cabo_last_updated || "0");
+            var remoteTs = parseInt(remote._ts || "0");
             if (remoteTs > localTs) {
-              // Remote is newer — overwrite local with remote data
               var changed = false;
               KEYS.forEach(function(k) {
-                if (remote[k] !== undefined && remote[k] !== localStorage.getItem(k)) {
+                if (remote[k] != null && remote[k] !== localStorage.getItem(k)) {
                   _writing = true;
                   _origSet(k, remote[k]);
                   _writing = false;
@@ -2828,40 +2877,46 @@
                 }
               });
               _writing = true;
-              _origSet("cabo_last_updated", remote.cabo_last_updated);
+              _origSet("cabo_last_updated", remote._ts.toString());
               _writing = false;
+              _setChip(true);
               if (changed) _refresh();
             } else if (localTs > remoteTs) {
-              // Local is newer — push everything up to sync other devices
-              _pushAll();
-            } else if (remoteTs === 0) {
-              // Google Sheets is empty — seed it with local data
-              _pushAll();
+              _push();
+            } else {
+              _setChip(true);
             }
           })
-          .catch(function(){});
+          .catch(function() { _setChip(false); });
       }
+
       function _startPolling() {
         clearInterval(_pollTimer);
-        _pollTimer = setInterval(_pull, 30000);
+        if (!_getUrl()) return;
+        _pollTimer = setInterval(_pull, 15000);
       }
+
       return {
         active: false,
         init: function() {
           _origSet = localStorage.setItem.bind(localStorage);
           localStorage.setItem = function(k, v) {
             _origSet(k, v);
-            if (!_writing && KEYS.indexOf(k) !== -1) _pushKey(k, v);
+            if (!_writing && KEYS.indexOf(k) !== -1) {
+              clearTimeout(_debounceTimer);
+              _debounceTimer = setTimeout(_push, 800);
+            }
           };
           _pull();
           _startPolling();
           this.active = true;
         },
         reload: function() {
+          clearInterval(_pollTimer);
           _pull();
           _startPolling();
         },
-        pushNow: function() { _pushAll(); }
+        pushNow: function() { _push(); }
       };
     })();
 
@@ -2906,13 +2961,13 @@
         { id: "G-1006", name: "Elena Rostova", email: "elena_ros@yandex.ru", phone: "+44 7911 123456", hotel: "Grand Solmar Land's End", room: "Room 1805", checkIn: "2026-05-26", checkOut: "2026-06-02", guestsCount: 3, status: "Lead", notes: "Inquiring about Sunset Sailing and airport shuttle pricing. Has not committed to excursions yet." }
       ];
       const sampleBookings = [
-        { id: "B-2001", guestId: "G-1001", guestName: "Marcus Sterling", catalogItemId: "tr-airport-round", serviceName: "Round-Trip Airport Private Van", date: "2026-05-20", time: "14:30", adultsCount: 4, childrenCount: 0, totalPrice: 220.00, netCost: 187.00, profitMargin: 33.00, operatorId: "transport", paymentStatus: "Paid", bookingStatus: "Completed", operatorStatus: "Confirmed", voucherSent: true, notes: "Driver met them at terminal 2. Very clean arrival." },
+        { id: "B-2001", guestId: "G-1001", guestName: "Marcus Sterling", catalogItemId: "tr-round", serviceName: "Round-Trip Airport Private Van", date: "2026-05-20", time: "14:30", adultsCount: 4, childrenCount: 0, totalPrice: 220.00, netCost: 187.00, profitMargin: 33.00, operatorId: "transport", paymentStatus: "Paid", bookingStatus: "Completed", operatorStatus: "Confirmed", voucherSent: true, notes: "Driver met them at terminal 2. Very clean arrival." },
         { id: "B-2002", guestId: "G-1001", guestName: "Marcus Sterling", catalogItemId: "ca-sailing", serviceName: "Luxury Sunset Sailing", date: "2026-05-23", time: "17:00", adultsCount: 4, childrenCount: 0, totalPrice: 476.00, netCost: 333.20, profitMargin: 142.80, operatorId: "cabo-adv", paymentStatus: "Paid", bookingStatus: "Confirmed", operatorStatus: "Confirmed", voucherSent: true, notes: "Special champagne toast requested for anniversary." },
         { id: "B-2003", guestId: "G-1001", guestName: "Marcus Sterling", catalogItemId: "c-atv-double", serviceName: "Double ATV Desert Tour", date: "2026-05-25", time: "09:00", adultsCount: 4, childrenCount: 0, totalPrice: 340.00, netCost: 255.00, profitMargin: 85.00, operatorId: "cactus", paymentStatus: "Deposit", bookingStatus: "Confirmed", operatorStatus: "Confirmed", voucherSent: true, notes: "Arranged hotel lobby pickup at 08:15 AM." },
-        { id: "B-2004", guestId: "G-1002", guestName: "Sarah Henderson", catalogItemId: "tr-airport-round", serviceName: "Round-Trip Airport Private Van", date: "2026-05-22", time: "11:45", adultsCount: 2, childrenCount: 0, totalPrice: 220.00, netCost: 187.00, profitMargin: 33.00, operatorId: "transport", paymentStatus: "Paid", bookingStatus: "Completed", operatorStatus: "Confirmed", voucherSent: true, notes: "Arrived on flight AA1290." },
+        { id: "B-2004", guestId: "G-1002", guestName: "Sarah Henderson", catalogItemId: "tr-round", serviceName: "Round-Trip Airport Private Van", date: "2026-05-22", time: "11:45", adultsCount: 2, childrenCount: 0, totalPrice: 220.00, netCost: 187.00, profitMargin: 33.00, operatorId: "transport", paymentStatus: "Paid", bookingStatus: "Completed", operatorStatus: "Confirmed", voucherSent: true, notes: "Arrived on flight AA1290." },
         { id: "B-2005", guestId: "G-1002", guestName: "Sarah Henderson", catalogItemId: "wc-ziplines", serviceName: "Monster Ziplines (8 Cables)", date: "2026-05-24", time: "10:00", adultsCount: 2, childrenCount: 0, totalPrice: 290.00, netCost: 208.80, profitMargin: 81.20, operatorId: "wild-canyon", paymentStatus: "Unpaid", bookingStatus: "Confirmed", operatorStatus: "Pending", voucherSent: false, notes: "Operator emailed; waiting for confirmation number." },
         { id: "B-2006", guestId: "G-1005", guestName: "Kevin Malone", catalogItemId: "sf-cruiser", serviceName: "31ft Sport Fishing Cruiser (8 hours)", date: "2026-05-17", time: "06:30", adultsCount: 1, childrenCount: 0, totalPrice: 750.00, netCost: 600.00, profitMargin: 150.00, operatorId: "fishing-charters", paymentStatus: "Paid", bookingStatus: "Completed", operatorStatus: "Confirmed", voucherSent: true, notes: "Caught 2 mahi-mahi and a marlin. Had a great charter." },
-        { id: "B-2007", guestId: "G-1003", guestName: "Robert Vance", catalogItemId: "sf-yacht-fish", serviceName: "Luxury 45ft Sport Fisher Yacht", date: "2026-05-26", time: "06:00", adultsCount: 5, childrenCount: 0, totalPrice: 1450.00, netCost: 1160.00, profitMargin: 290.00, operatorId: "fishing-charters", paymentStatus: "Deposit", bookingStatus: "Confirmed", operatorStatus: "Confirmed", voucherSent: true, notes: "Private gourmet lunch pre-stocked. VIP guest." },
+        { id: "B-2007", guestId: "G-1003", guestName: "Robert Vance", catalogItemId: "sf-yacht", serviceName: "Luxury 42ft Sport Fisher Yacht", date: "2026-05-26", time: "06:00", adultsCount: 5, childrenCount: 0, totalPrice: 1450.00, netCost: 1160.00, profitMargin: 290.00, operatorId: "fishing-charters", paymentStatus: "Deposit", bookingStatus: "Confirmed", operatorStatus: "Confirmed", voucherSent: true, notes: "Private gourmet lunch pre-stocked. VIP guest." },
         { id: "B-2008", guestId: "G-1004", guestName: "Diana Ross", catalogItemId: "ca-sailing", serviceName: "Luxury Sunset Sailing", date: "2026-05-19", time: "17:30", adultsCount: 2, childrenCount: 0, totalPrice: 238.00, netCost: 166.60, profitMargin: 71.40, operatorId: "cabo-adv", paymentStatus: "Paid", bookingStatus: "Completed", operatorStatus: "Confirmed", voucherSent: true, notes: "Enjoyed it. Promoted on Instagram." }
       ];
       const sampleTasks = [
@@ -5503,12 +5558,26 @@ See you in Cabo! ☀️`;
         </div>
 
         <div class="settings-section">
-          <h2 class="serif" style="font-size:14px; color:var(--gold);">Google Account Sync</h2>
-          <p style="font-size:12px; color:var(--text-muted); margin:8px 0 12px;">Paste your Google Apps Script URL below. All devices with this URL will share the same data automatically.</p>
-          <div class="inline-add-row">
-            <input id="sync-url-input" type="text" class="form-input" placeholder="https://script.google.com/macros/s/..." value="${localStorage.getItem('cabo_sync_url') || ''}" />
-            <button onclick="saveSyncUrl()" class="btn btn-primary"><i class="ti ti-check"></i> Save</button>
+          <h2 class="serif" style="font-size:14px; color:var(--gold);"><i class="ti ti-cloud" style="margin-right:6px;"></i>Cloud Sync — Firebase Realtime Database</h2>
+          <p style="font-size:12px; color:var(--text-muted); margin:8px 0 10px;">Connect a free Firebase database so all phones, tablets and computers share the same data instantly — every change syncs within 15 seconds.</p>
+          <div style="background:rgba(201,168,76,0.06); border:1px solid rgba(201,168,76,0.18); border-radius:var(--radius-md); padding:14px 16px; margin-bottom:14px; font-size:12px; color:var(--text-muted); line-height:1.8;">
+            <strong style="color:var(--gold); font-size:12px;">One-time setup (free, takes ~5 minutes):</strong><br/>
+            1&nbsp;· Go to <strong style="color:var(--text);">console.firebase.google.com</strong> and create a new project<br/>
+            2&nbsp;· Click <strong style="color:var(--text);">Build → Realtime Database → Create Database</strong><br/>
+            3&nbsp;· Open the <strong style="color:var(--text);">Rules</strong> tab, paste the rules below and click <strong style="color:var(--text);">Publish</strong><br/>
+            <code style="display:block; background:rgba(0,0,0,0.35); padding:6px 10px; border-radius:4px; margin:6px 0; color:var(--teal); font-size:11px;">{"rules":{".read":true,".write":true}}</code>
+            4&nbsp;· Copy your database URL — it looks like: <em style="color:var(--text);">https://my-app-default-rtdb.firebaseio.com</em><br/>
+            5&nbsp;· Paste it below and click <strong style="color:var(--gold);">Save &amp; Sync</strong>
           </div>
+          <div class="inline-add-row">
+            <input id="sync-url-input" type="text" class="form-input" placeholder="https://your-project-default-rtdb.firebaseio.com" value="${localStorage.getItem("cabo_sync_url") || ""}" />
+            <button onclick="saveSyncUrl()" class="btn btn-primary"><i class="ti ti-cloud-upload"></i> Save &amp; Sync</button>
+          </div>
+          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button onclick="CloudSync.pushNow(); window.CaboComponents.showToast('All data pushed to cloud.', 'success');" class="btn btn-secondary" style="font-size:11px;"><i class="ti ti-upload"></i> Push My Data Now</button>
+            <button onclick="CloudSync.reload(); window.CaboComponents.showToast('Pulling latest data from cloud…', 'info');" class="btn btn-secondary" style="font-size:11px;"><i class="ti ti-download"></i> Pull from Cloud</button>
+          </div>
+          <p style="font-size:10px; color:var(--text-muted); margin-top:10px;"><i class="ti ti-info-circle" style="color:var(--teal);"></i> The sync chip in the top-right header shows <strong style="color:#5BC78E;">Synced</strong> when connected, <strong style="color:var(--text-muted);">Local Only</strong> when offline or not configured.</p>
         </div>
 
         <div class="settings-section">
