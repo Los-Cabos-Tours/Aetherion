@@ -2726,6 +2726,7 @@
       { id: "sf-super",      name: "Super Panga 28ft Charter (6 hours)",        operatorId: "cabo-ray",    category: "Sport fishing", adultPrice: 480,  childPrice: 480 },
       { id: "sf-cruiser",    name: "31ft Sport Fishing Cruiser (8 hours)",      operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 750, childPrice: 750 },
       { id: "sf-yacht",      name: "Luxury 42ft Sport Fisher Yacht (8 hrs)",   operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 1200, childPrice: 1200 },
+      { id: "sf-yacht-fish", name: "Luxury 45ft Sport Fisher Yacht",            operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 1450, childPrice: 1450 },
       { id: "sf-super-yacht","name": "Premium 55ft Sport Fisher (Full Day)",   operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 1800, childPrice: 1800 },
       // ── CULTURE & FOOD ─────────────────────────────────────────────────────
       { id: "lv-tequila",    name: "Tequila & Mezcal Tasting Tour",             operatorId: "luvies",      category: "Culture & food", adultPrice: 79,  childPrice: 0 },
@@ -2736,6 +2737,7 @@
       { id: "tr-arrival",    name: "Airport Arrival — Private Suburban/Van",    operatorId: "transport",   category: "Transfers & Extras", adultPrice: 120, childPrice: 120 },
       { id: "tr-departure",  name: "Airport Departure — Private Suburban/Van",  operatorId: "transport",   category: "Transfers & Extras", adultPrice: 100, childPrice: 100 },
       { id: "tr-round",      name: "Round-Trip Airport Transfer (Up to 7 pax)", operatorId: "transport",   category: "Transfers & Extras", adultPrice: 220, childPrice: 220 },
+      { id: "tr-airport-round", name: "Round-Trip Airport Private Van (Up to 7 pax)", operatorId: "transport", category: "Transfers & Extras", adultPrice: 220, childPrice: 220 },
       { id: "tr-local",      name: "Local Day Tour Transport (per hour)",        operatorId: "transport",   category: "Transfers & Extras", adultPrice: 60,  childPrice: 60 },
       { id: "ext-dinner",    name: "Private In-Villa Dinner (per person)",       operatorId: "lct",         category: "Transfers & Extras", adultPrice: 85,  childPrice: 45 },
       { id: "ext-chef",      name: "Private Chef for the Evening (up to 8 pax)",operatorId: "lct",         category: "Transfers & Extras", adultPrice: 350, childPrice: 0, desc: "Flat rate for full dinner service with private chef" },
@@ -2782,6 +2784,9 @@
     //  web app backed by Google Sheets (user's own Google account).
     //  Configure the script URL once in Settings > Data Management.
     // ----------------------------------------------------------------
+    // Default Google Apps Script sync URL (redeploy with "Anyone" access to activate)
+    var APPS_SCRIPT_DEFAULT_URL = "https://script.google.com/macros/s/AKfycbw7Ar_jS4g1MEFZjIWBAIcZajIt-uhpqTet8DTX--EUWpHyte2hrxKF3AjxQoBmhsNOyQ/exec";
+
     var CloudSync = (function() {
       var KEYS = ["cabo_users","cabo_guests","cabo_bookings",
                   "cabo_tasks","cabo_operators","cabo_resorts","cabo_settings"];
@@ -2792,12 +2797,18 @@
 
       function _getUrl() {
         var u = (localStorage.getItem("cabo_sync_url") || "").trim();
-        if (!u) return null;
-        u = u.replace(/\/$/, "");
-        // Auto-append /crm.json for bare Firebase RTDB URLs
-        if (u.match(/\.firebaseio\.com$/)) u += "/crm.json";
-        else if (!u.endsWith(".json")) u += ".json";
-        return u;
+        return u || APPS_SCRIPT_DEFAULT_URL;
+      }
+
+      function _isFirebase(url) {
+        return url && url.indexOf("firebaseio.com") !== -1;
+      }
+
+      function _fbUrl(url) {
+        url = url.replace(/\/$/, "");
+        if (url.match(/\.firebaseio\.com$/)) url += "/crm";
+        if (!url.endsWith(".json")) url += ".json";
+        return url;
       }
 
       function _setChip(ok, label) {
@@ -2830,42 +2841,46 @@
 
       function _push() {
         var url = _getUrl();
-        if (!url) return;
-        var ts = Date.now();
-        var payload = { _ts: ts };
+        var ts = Date.now().toString();
+        var payload = { cabo_last_updated: ts };
         KEYS.forEach(function(k) {
           var v = localStorage.getItem(k);
           if (v != null) payload[k] = v;
         });
-        _origSet("cabo_last_updated", ts.toString());
+        _origSet("cabo_last_updated", ts);
         _setChip(false, "Syncing…");
-        fetch(url, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        })
-        .then(function(r) {
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          _setChip(true);
-        })
-        .catch(function() { _setChip(false); });
+
+        if (_isFirebase(url)) {
+          // Firebase Realtime Database — PUT with _ts alias
+          var fbPayload = Object.assign({ _ts: parseInt(ts) }, payload);
+          fetch(_fbUrl(url), {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(fbPayload)
+          })
+          .then(function(r) { _setChip(r.ok); })
+          .catch(function() { _setChip(false); });
+        } else {
+          // Google Apps Script — POST (same format as original)
+          fetch(url, { method: "POST", body: JSON.stringify(payload) })
+            .then(function(r) { _setChip(r.ok); })
+            .catch(function() { _setChip(false); });
+        }
       }
 
       function _pull() {
         var url = _getUrl();
-        if (!url) { _setChip(false); return; }
-        fetch(url + "?nc=" + Date.now())
-          .then(function(r) {
-            if (!r.ok) throw new Error("HTTP " + r.status);
-            return r.json();
-          })
+        var fetchUrl = _isFirebase(url) ? (_fbUrl(url) + "?nc=" + Date.now()) : (url + "?t=" + Date.now());
+
+        fetch(fetchUrl)
+          .then(function(r) { return r.ok ? r.json() : null; })
           .then(function(remote) {
-            if (!remote || !remote._ts) {
-              _push();
-              return;
-            }
+            if (!remote) { _push(); return; }
+
             var localTs = _localTs();
-            var remoteTs = parseInt(remote._ts || "0");
+            // Support both Apps Script format (cabo_last_updated) and Firebase (_ts)
+            var remoteTs = parseInt(remote.cabo_last_updated || remote._ts || "0");
+
             if (remoteTs > localTs) {
               var changed = false;
               KEYS.forEach(function(k) {
@@ -2877,11 +2892,11 @@
                 }
               });
               _writing = true;
-              _origSet("cabo_last_updated", remote._ts.toString());
+              _origSet("cabo_last_updated", remoteTs.toString());
               _writing = false;
               _setChip(true);
               if (changed) _refresh();
-            } else if (localTs > remoteTs) {
+            } else if (localTs > remoteTs || remoteTs === 0) {
               _push();
             } else {
               _setChip(true);
@@ -2892,7 +2907,6 @@
 
       function _startPolling() {
         clearInterval(_pollTimer);
-        if (!_getUrl()) return;
         _pollTimer = setInterval(_pull, 15000);
       }
 
@@ -2967,7 +2981,7 @@
         { id: "B-2004", guestId: "G-1002", guestName: "Sarah Henderson", catalogItemId: "tr-round", serviceName: "Round-Trip Airport Private Van", date: "2026-05-22", time: "11:45", adultsCount: 2, childrenCount: 0, totalPrice: 220.00, netCost: 187.00, profitMargin: 33.00, operatorId: "transport", paymentStatus: "Paid", bookingStatus: "Completed", operatorStatus: "Confirmed", voucherSent: true, notes: "Arrived on flight AA1290." },
         { id: "B-2005", guestId: "G-1002", guestName: "Sarah Henderson", catalogItemId: "wc-ziplines", serviceName: "Monster Ziplines (8 Cables)", date: "2026-05-24", time: "10:00", adultsCount: 2, childrenCount: 0, totalPrice: 290.00, netCost: 208.80, profitMargin: 81.20, operatorId: "wild-canyon", paymentStatus: "Unpaid", bookingStatus: "Confirmed", operatorStatus: "Pending", voucherSent: false, notes: "Operator emailed; waiting for confirmation number." },
         { id: "B-2006", guestId: "G-1005", guestName: "Kevin Malone", catalogItemId: "sf-cruiser", serviceName: "31ft Sport Fishing Cruiser (8 hours)", date: "2026-05-17", time: "06:30", adultsCount: 1, childrenCount: 0, totalPrice: 750.00, netCost: 600.00, profitMargin: 150.00, operatorId: "fishing-charters", paymentStatus: "Paid", bookingStatus: "Completed", operatorStatus: "Confirmed", voucherSent: true, notes: "Caught 2 mahi-mahi and a marlin. Had a great charter." },
-        { id: "B-2007", guestId: "G-1003", guestName: "Robert Vance", catalogItemId: "sf-yacht", serviceName: "Luxury 42ft Sport Fisher Yacht", date: "2026-05-26", time: "06:00", adultsCount: 5, childrenCount: 0, totalPrice: 1450.00, netCost: 1160.00, profitMargin: 290.00, operatorId: "fishing-charters", paymentStatus: "Deposit", bookingStatus: "Confirmed", operatorStatus: "Confirmed", voucherSent: true, notes: "Private gourmet lunch pre-stocked. VIP guest." },
+        { id: "B-2007", guestId: "G-1003", guestName: "Robert Vance", catalogItemId: "sf-yacht-fish", serviceName: "Luxury 45ft Sport Fisher Yacht", date: "2026-05-26", time: "06:00", adultsCount: 5, childrenCount: 0, totalPrice: 1450.00, netCost: 1160.00, profitMargin: 290.00, operatorId: "fishing-charters", paymentStatus: "Deposit", bookingStatus: "Confirmed", operatorStatus: "Confirmed", voucherSent: true, notes: "Private gourmet lunch pre-stocked. VIP guest." },
         { id: "B-2008", guestId: "G-1004", guestName: "Diana Ross", catalogItemId: "ca-sailing", serviceName: "Luxury Sunset Sailing", date: "2026-05-19", time: "17:30", adultsCount: 2, childrenCount: 0, totalPrice: 238.00, netCost: 166.60, profitMargin: 71.40, operatorId: "cabo-adv", paymentStatus: "Paid", bookingStatus: "Completed", operatorStatus: "Confirmed", voucherSent: true, notes: "Enjoyed it. Promoted on Instagram." }
       ];
       const sampleTasks = [
@@ -5558,26 +5572,45 @@ See you in Cabo! ☀️`;
         </div>
 
         <div class="settings-section">
-          <h2 class="serif" style="font-size:14px; color:var(--gold);"><i class="ti ti-cloud" style="margin-right:6px;"></i>Cloud Sync — Firebase Realtime Database</h2>
-          <p style="font-size:12px; color:var(--text-muted); margin:8px 0 10px;">Connect a free Firebase database so all phones, tablets and computers share the same data instantly — every change syncs within 15 seconds.</p>
-          <div style="background:rgba(201,168,76,0.06); border:1px solid rgba(201,168,76,0.18); border-radius:var(--radius-md); padding:14px 16px; margin-bottom:14px; font-size:12px; color:var(--text-muted); line-height:1.8;">
-            <strong style="color:var(--gold); font-size:12px;">One-time setup (free, takes ~5 minutes):</strong><br/>
-            1&nbsp;· Go to <strong style="color:var(--text);">console.firebase.google.com</strong> and create a new project<br/>
-            2&nbsp;· Click <strong style="color:var(--text);">Build → Realtime Database → Create Database</strong><br/>
-            3&nbsp;· Open the <strong style="color:var(--text);">Rules</strong> tab, paste the rules below and click <strong style="color:var(--text);">Publish</strong><br/>
-            <code style="display:block; background:rgba(0,0,0,0.35); padding:6px 10px; border-radius:4px; margin:6px 0; color:var(--teal); font-size:11px;">{"rules":{".read":true,".write":true}}</code>
-            4&nbsp;· Copy your database URL — it looks like: <em style="color:var(--text);">https://my-app-default-rtdb.firebaseio.com</em><br/>
-            5&nbsp;· Paste it below and click <strong style="color:var(--gold);">Save &amp; Sync</strong>
+          <h2 class="serif" style="font-size:14px; color:var(--gold);"><i class="ti ti-brand-google" style="margin-right:6px;"></i>Google Account Sync</h2>
+          <p style="font-size:12px; color:var(--text-muted); margin:8px 0 10px;">Your CRM uses a Google Apps Script to sync data across all phones and computers. Every change is pushed within 15 seconds.</p>
+
+          <div style="background:rgba(212,88,26,0.08); border:1px solid rgba(212,88,26,0.3); border-radius:var(--radius-md); padding:12px 14px; margin-bottom:14px; font-size:12px; color:var(--text-muted); line-height:1.7;">
+            <strong style="color:var(--coral);"><i class="ti ti-alert-circle"></i> Action Required — Fix Script Permissions</strong><br/>
+            The Google Apps Script needs one setting change to allow all staff to sync without logging in to Google:<br/><br/>
+            1&nbsp;· Go to <strong style="color:var(--text);">script.google.com</strong> → open the Aetherion project<br/>
+            2&nbsp;· Click <strong style="color:var(--text);">Deploy → Manage deployments</strong><br/>
+            3&nbsp;· Click the pencil ✏️ icon on the active deployment<br/>
+            4&nbsp;· Change <strong style="color:var(--text);">"Who has access"</strong> to <strong style="color:#5BC78E;">Anyone</strong> (not "Anyone with Google Account")<br/>
+            5&nbsp;· Click <strong style="color:var(--text);">Deploy</strong> — copy the new URL and paste it below
           </div>
+
+          <details style="margin-bottom:14px;">
+            <summary style="font-size:12px; color:var(--gold); cursor:pointer; padding:8px 0;"><i class="ti ti-code"></i> &nbsp;New Google Apps Script? Paste this code into script.google.com</summary>
+            <div style="background:rgba(0,0,0,0.4); border-radius:var(--radius-md); padding:12px; margin-top:8px; font-size:11px; color:var(--teal); font-family:monospace; white-space:pre-wrap; overflow-x:auto; line-height:1.6;">var FILE = "Aetherion_CRM_Data.json";
+function _f(){var fs=DriveApp.getFilesByName(FILE);return fs.hasNext()?fs.next():DriveApp.createFile(FILE,"{}",MimeType.PLAIN_TEXT);}
+function doGet(e){return ContentService.createTextOutput(_f().getBlob().getDataAsString()||"{}").setMimeType(ContentService.MimeType.JSON);}
+function doPost(e){
+  try{
+    var inc=JSON.parse(e.postData.contents),f=_f();
+    var cur=JSON.parse(f.getBlob().getDataAsString()||"{}");
+    var rTs=parseInt(cur.cabo_last_updated||"0"),iTs=parseInt(inc.cabo_last_updated||"0");
+    if(iTs>=rTs){f.setContent(JSON.stringify(inc));return ContentService.createTextOutput(JSON.stringify(inc)).setMimeType(ContentService.MimeType.JSON);}
+    return ContentService.createTextOutput(JSON.stringify(cur)).setMimeType(ContentService.MimeType.JSON);
+  }catch(err){return ContentService.createTextOutput(JSON.stringify({error:err.toString()})).setMimeType(ContentService.MimeType.JSON);}
+}</div>
+            <p style="font-size:11px; color:var(--text-muted); margin-top:8px;">Deploy as: <strong style="color:var(--text);">Execute as Me</strong> · Who has access: <strong style="color:#5BC78E;">Anyone</strong></p>
+          </details>
+
           <div class="inline-add-row">
-            <input id="sync-url-input" type="text" class="form-input" placeholder="https://your-project-default-rtdb.firebaseio.com" value="${localStorage.getItem("cabo_sync_url") || ""}" />
-            <button onclick="saveSyncUrl()" class="btn btn-primary"><i class="ti ti-cloud-upload"></i> Save &amp; Sync</button>
+            <input id="sync-url-input" type="text" class="form-input" placeholder="https://script.google.com/macros/s/..." value="${localStorage.getItem("cabo_sync_url") || APPS_SCRIPT_DEFAULT_URL}" />
+            <button onclick="saveSyncUrl()" class="btn btn-primary"><i class="ti ti-check"></i> Save &amp; Sync</button>
           </div>
           <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
             <button onclick="CloudSync.pushNow(); window.CaboComponents.showToast('All data pushed to cloud.', 'success');" class="btn btn-secondary" style="font-size:11px;"><i class="ti ti-upload"></i> Push My Data Now</button>
             <button onclick="CloudSync.reload(); window.CaboComponents.showToast('Pulling latest data from cloud…', 'info');" class="btn btn-secondary" style="font-size:11px;"><i class="ti ti-download"></i> Pull from Cloud</button>
           </div>
-          <p style="font-size:10px; color:var(--text-muted); margin-top:10px;"><i class="ti ti-info-circle" style="color:var(--teal);"></i> The sync chip in the top-right header shows <strong style="color:#5BC78E;">Synced</strong> when connected, <strong style="color:var(--text-muted);">Local Only</strong> when offline or not configured.</p>
+          <p style="font-size:10px; color:var(--text-muted); margin-top:10px;"><i class="ti ti-info-circle" style="color:var(--teal);"></i> The sync chip in the header shows <strong style="color:#5BC78E;">Synced</strong> when connected, <strong style="color:var(--text-muted);">Local Only</strong> when the script cannot be reached.</p>
         </div>
 
         <div class="settings-section">
