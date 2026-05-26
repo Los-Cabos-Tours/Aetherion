@@ -2805,9 +2805,17 @@
       function _isFirebase(u) { return u && u.indexOf("firebaseio.com") !== -1; }
       function _fbUrl(u) {
         u = u.replace(/\/$/, "");
-        if (u.match(/\.firebaseio\.com$/)) u += "/crm";
+        var ns = (localStorage.getItem("aetherion_sync_namespace") || "default").trim();
+        u += "/crm_" + ns;
         if (!u.endsWith(".json")) u += ".json";
         return u;
+      }
+      function _getSyncUrl() {
+        var url = _getUrl();
+        if (!url) return "";
+        if (_isFirebase(url)) return url;
+        var ns = (localStorage.getItem("aetherion_sync_namespace") || "default").trim();
+        return url + (url.indexOf("?") >= 0 ? "&" : "?") + "user=" + encodeURIComponent(ns);
       }
 
       function _setChip(ok, label) {
@@ -2867,18 +2875,28 @@
         } catch(e) {}
       }
 
-      // Merge two ID-keyed arrays: keep all local records + add remote records with new IDs.
+      // Merge two ID-keyed arrays using Last-Write-Wins (LWW) based on updatedAt.
       // IDs in tombSet are excluded from both sides (they were intentionally deleted).
       function _mergeArr(localArr, remoteArr, tombSet) {
-        var merged = localArr.filter(function(item) { return item.id && !tombSet[item.id]; });
-        var seen = {};
-        merged.forEach(function(item) { seen[item.id] = true; });
-        remoteArr.forEach(function(item) {
-          if (!item.id || tombSet[item.id] || seen[item.id]) return;
-          merged.push(item);
-          seen[item.id] = true;
+        var mergedMap = {};
+        localArr.forEach(function(item) {
+          if (!item.id || tombSet[item.id]) return;
+          mergedMap[item.id] = item;
         });
-        return merged;
+        remoteArr.forEach(function(item) {
+          if (!item.id || tombSet[item.id]) return;
+          var localItem = mergedMap[item.id];
+          if (!localItem) {
+            mergedMap[item.id] = item;
+          } else {
+            var localTs = localItem.updatedAt || 0;
+            var remoteTs = item.updatedAt || 0;
+            if (remoteTs > localTs) {
+              mergedMap[item.id] = item;
+            }
+          }
+        });
+        return Object.keys(mergedMap).map(function(id) { return mergedMap[id]; });
       }
 
       // Merge two activity log arrays: union by entry id, newest first, capped at 1000
@@ -2911,21 +2929,33 @@
       }
 
       function _push() {
-        var url = _getUrl();
+        var url = _getSyncUrl();
         if (!url) { return; }
+        _setChip(true, "Syncing…");
         var ts = Date.now().toString();
         var payload = { aetherion_last_updated: ts };
         KEYS.forEach(function(k) { var v = _origGet(k); if (v != null) payload[k] = v; });
         _origSet("aetherion_last_updated", ts);
-        if (_isFirebase(url)) {
+        var rawUrl = _getUrl();
+        if (_isFirebase(rawUrl)) {
           var fbPayload = Object.assign({ _ts: parseInt(ts) }, payload);
-          fetch(_fbUrl(url), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(fbPayload) })
-            .then(function() {}).catch(function() {});
+          fetch(_fbUrl(rawUrl), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(fbPayload) })
+            .then(function() {
+              _setChip(true, "Synced at " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+            })
+            .catch(function() {
+              _setChip(false, "Sync Error");
+            });
         } else {
           // no-cors POST: browser sends the request cross-origin with no CORS check.
           // Apps Script receives the body in e.postData.contents and saves it.
           fetch(url, { method:"POST", mode:"no-cors", body:JSON.stringify(payload) })
-            .then(function() {}).catch(function() {});
+            .then(function() {
+              _setChip(true, "Synced at " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+            })
+            .catch(function() {
+              _setChip(false, "Sync Error");
+            });
         }
       }
 
@@ -2962,11 +2992,19 @@
       }
 
       function _pull() {
-        var url = _getUrl();
+        var url = _getSyncUrl();
         if (!url) { return; }
 
         var doMerge = function(remote) {
-          if (!remote || !remote.aetherion_last_updated) { _push(); return; }
+          if (remote === null) {
+            _setChip(false, "Sync Error");
+            return;
+          }
+          if (!remote.aetherion_last_updated) {
+            _setChip(true, "Initializing…");
+            _push();
+            return;
+          }
 
           var mergedTombsStr = _mergeTombs(_origGet("aetherion_tombstones"), remote.aetherion_tombstones);
           var mergedTombs = {};
@@ -3032,10 +3070,12 @@
           var remoteTs = parseInt(remote.aetherion_last_updated || remote._ts || "0");
           _writing = true; _origSet("aetherion_last_updated", Math.max(_localTs(), remoteTs).toString()); _writing = false;
           if (changed) { _push(); _refresh(); }
+          _setChip(true, "Synced at " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
         };
 
-        if (_isFirebase(url)) {
-          fetch(_fbUrl(url) + "?nc=" + Date.now())
+        var rawUrl = _getUrl();
+        if (_isFirebase(rawUrl)) {
+          fetch(_fbUrl(rawUrl) + "?nc=" + Date.now())
             .then(function(r) { return r.ok ? r.json() : null; })
             .then(doMerge)
             .catch(function() {});
@@ -3052,6 +3092,10 @@
       return {
         active: false,
         init: function() {
+          if (this.active) {
+            this.reload();
+            return;
+          }
           _origSet = localStorage.setItem.bind(localStorage);
           _origGet = localStorage.getItem.bind(localStorage);
           localStorage.setItem = function(k, v) {
@@ -3204,6 +3248,7 @@
       },
       saveGuest: (guest) => {
         const guests = db.getGuests();
+        guest.updatedAt = Date.now();
         if (!guest.id) {
           const maxIdNum = guests.reduce((max, g) => {
             const num = parseInt(g.id.replace("G-", ""));
@@ -3241,6 +3286,7 @@
       },
       saveBooking: (booking) => {
         const bookings = db.getBookings();
+        booking.updatedAt = Date.now();
         const financials = calculateBookingFinancials(booking.catalogItemId, booking.adultsCount, booking.childrenCount, booking.totalPrice || null);
         booking.totalPrice = financials.total;
         booking.netCost = financials.netCost;
@@ -3277,6 +3323,7 @@
       },
       saveTask: (task) => {
         const tasks = db.getTasks();
+        task.updatedAt = Date.now();
         if (!task.id) {
           const maxIdNum = tasks.reduce((max, t) => {
             const num = parseInt(t.id.replace("T-", ""));
@@ -3337,6 +3384,7 @@
       },
       saveUser: (user) => {
         const users = JSON.parse(localStorage.getItem("aetherion_users") || "[]");
+        user.updatedAt = Date.now();
         if (!user.id) {
           const maxIdNum = users.reduce((max, u) => {
             const num = parseInt(u.id.replace("U-", "")) || 0;
@@ -4398,19 +4446,19 @@ See you in Cabo! ☀️`;
 
         <div class="view-tabs">
           <span class="view-tabs-label"><i class="ti ti-filter"></i> Filter by Status:</span>
-          <button class="vtab ${guestStatusFilter === "All" ? "active" : ""}" onclick="handleGuestStatusFilter("All")">
+          <button class="vtab ${guestStatusFilter === "All" ? "active" : ""}" onclick="handleGuestStatusFilter('All')">
             <i class="ti ti-users"></i> All Guests <span class="vtab-count">${gAll}</span>
           </button>
-          <button class="vtab vtab-active-status ${guestStatusFilter === "Active" ? "active" : ""}" onclick="handleGuestStatusFilter("Active")">
+          <button class="vtab vtab-active-status ${guestStatusFilter === "Active" ? "active" : ""}" onclick="handleGuestStatusFilter('Active')">
             <i class="ti ti-map-pin"></i> Active in Cabo <span class="vtab-count">${gActive}</span>
           </button>
-          <button class="vtab vtab-lead-status ${guestStatusFilter === "Lead" ? "active" : ""}" onclick="handleGuestStatusFilter("Lead")">
+          <button class="vtab vtab-lead-status ${guestStatusFilter === "Lead" ? "active" : ""}" onclick="handleGuestStatusFilter('Lead')">
             <i class="ti ti-user-question"></i> Leads &amp; Inquiries <span class="vtab-count">${gLead}</span>
           </button>
-          <button class="vtab vtab-confirmed-status ${guestStatusFilter === "Confirmed" ? "active" : ""}" onclick="handleGuestStatusFilter("Confirmed")">
+          <button class="vtab vtab-confirmed-status ${guestStatusFilter === "Confirmed" ? "active" : ""}" onclick="handleGuestStatusFilter('Confirmed')">
             <i class="ti ti-calendar-check"></i> Confirmed Bookings <span class="vtab-count">${gConfirmed}</span>
           </button>
-          <button class="vtab vtab-completed-status ${guestStatusFilter === "Completed" ? "active" : ""}" onclick="handleGuestStatusFilter("Completed")">
+          <button class="vtab vtab-completed-status ${guestStatusFilter === "Completed" ? "active" : ""}" onclick="handleGuestStatusFilter('Completed')">
             <i class="ti ti-circle-check"></i> Trip Completed <span class="vtab-count">${gCompleted}</span>
           </button>
         </div>
@@ -4507,19 +4555,19 @@ See you in Cabo! ☀️`;
 
         <div class="view-tabs">
           <span class="view-tabs-label"><i class="ti ti-filter"></i> Filter by Booking Status:</span>
-          <button class="vtab ${bookingStatusFilter === "All" ? "active" : ""}" onclick="handleBookingStatusFilter("All")">
+          <button class="vtab ${bookingStatusFilter === "All" ? "active" : ""}" onclick="handleBookingStatusFilter('All')">
             <i class="ti ti-calendar"></i> All Bookings <span class="vtab-count">${bAll}</span>
           </button>
-          <button class="vtab vtab-pending-bk ${bookingStatusFilter === "Pending" ? "active" : ""}" onclick="handleBookingStatusFilter("Pending")">
+          <button class="vtab vtab-pending-bk ${bookingStatusFilter === "Pending" ? "active" : ""}" onclick="handleBookingStatusFilter('Pending')">
             <i class="ti ti-clock"></i> Pending <span class="vtab-count">${bPending}</span>
           </button>
-          <button class="vtab vtab-confirmed-bk ${bookingStatusFilter === "Confirmed" ? "active" : ""}" onclick="handleBookingStatusFilter("Confirmed")">
+          <button class="vtab vtab-confirmed-bk ${bookingStatusFilter === "Confirmed" ? "active" : ""}" onclick="handleBookingStatusFilter('Confirmed')">
             <i class="ti ti-circle-check"></i> Confirmed <span class="vtab-count">${bConfirmed}</span>
           </button>
-          <button class="vtab vtab-completed-bk ${bookingStatusFilter === "Completed" ? "active" : ""}" onclick="handleBookingStatusFilter("Completed")">
+          <button class="vtab vtab-completed-bk ${bookingStatusFilter === "Completed" ? "active" : ""}" onclick="handleBookingStatusFilter('Completed')">
             <i class="ti ti-checks"></i> Completed <span class="vtab-count">${bCompleted}</span>
           </button>
-          <button class="vtab vtab-cancelled-bk ${bookingStatusFilter === "Cancelled" ? "active" : ""}" onclick="handleBookingStatusFilter("Cancelled")">
+          <button class="vtab vtab-cancelled-bk ${bookingStatusFilter === "Cancelled" ? "active" : ""}" onclick="handleBookingStatusFilter('Cancelled')">
             <i class="ti ti-ban"></i> Cancelled <span class="vtab-count">${bCancelled}</span>
           </button>
         </div>
@@ -4743,7 +4791,8 @@ See you in Cabo! ☀️`;
         phone: document.getElementById("form-op-phone").value.trim(),
         email: document.getElementById("form-op-email").value.trim(),
         netRate: parseFloat(document.getElementById("form-op-rate").value) || 0.75,
-        website: document.getElementById("form-op-website").value.trim()
+        website: document.getElementById("form-op-website").value.trim(),
+        updatedAt: Date.now()
       };
       if (id) {
         const idx = operators.findIndex(o => o.id === id);
