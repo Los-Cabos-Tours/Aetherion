@@ -3157,37 +3157,30 @@
     })();
 
     function initializeDB() {
-      // Always merge DEFAULT_USERS so any browser always has the base team accounts.
-      // If a default user already exists but the default has a higher credV, update
-      // their identity/credentials while preserving any custom permissions set via UI.
+      // DEFAULT_USERS credentials are AUTHORITATIVE — on every load, the 6 default
+      // accounts are restored to their default username/password/role exactly.
+      // Custom users created via the Users panel are preserved untouched.
       let storedUsers = JSON.parse(localStorage.getItem("aetherion_users") || "[]");
-      const deletedDefaults = JSON.parse(localStorage.getItem("aetherion_deleted_defaults") || "[]");
       DEFAULT_USERS.forEach(function(du) {
-        // credV >= 2 = protected account; always restore even if previously deleted
-        if (deletedDefaults.indexOf(du.id) !== -1 && (du.credV || 1) < 2) return;
-        const idx = storedUsers.findIndex(function(u) { return u.id === du.id; });
-        if (idx === -1) {
-          storedUsers.push(du);
-        } else if ((du.credV || 1) > (storedUsers[idx].credV || 1)) {
-          storedUsers[idx] = Object.assign({}, storedUsers[idx], {
-            username: du.username,
-            password: du.password,
-            name: du.name,
-            email: du.email,
-            phone: du.phone,
-            role: du.role,
-            active: du.active,
-            credV: du.credV
-          });
-        }
+        const defUsername = du.username.toLowerCase();
+        // Drop any stored entry that conflicts on username OR id with this default
+        // (prevents stale duplicates from blocking login with default password)
+        storedUsers = storedUsers.filter(function(u) {
+          return u.id !== du.id && (u.username || "").toLowerCase() !== defUsername;
+        });
+        // Insert the default user fresh — guaranteed correct credentials
+        storedUsers.push(Object.assign({}, du, { active: true }));
       });
-      // Remove duplicate usernames — keep first occurrence
+      // Final dedup by username just in case any custom user collides
       const seenUsernames = {};
       storedUsers = storedUsers.filter(function(u) {
-        if (!seenUsernames[u.username]) { seenUsernames[u.username] = true; return true; }
+        const key = (u.username || "").toLowerCase();
+        if (!seenUsernames[key]) { seenUsernames[key] = true; return true; }
         return false;
       });
       localStorage.setItem("aetherion_users", JSON.stringify(storedUsers));
+      // Also wipe deletedDefaults so default accounts can't be permanently removed
+      localStorage.removeItem("aetherion_deleted_defaults");
       if (localStorage.getItem("aetherion_initialized")) return;
       const sampleGuests = [
         { id: "G-1001", name: "Marcus Sterling", email: "msterling@outlook.com", phone: "+1 (512) 555-8839", hotel: "Pueblo Bonito Sunset Beach", room: "Suite 4124", checkIn: "2026-05-20", checkOut: "2026-05-27", guestsCount: 4, status: "Active", notes: "Celebrating 10th anniversary. Prefers top-shelf tequila, ocean views, and requested late checkout." },
@@ -5953,7 +5946,7 @@ See you in Cabo! ☀️`;
         const session = JSON.parse(localStorage.getItem("aetherion_user") || "null");
         if (!session) return null;
         const user = window.CaboDB.getUser(session.id);
-        if (!user || (user.credV || 1) !== (session.credV || 1)) {
+        if (!user || user.active === false) {
           localStorage.removeItem("aetherion_user");
           return null;
         }
