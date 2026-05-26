@@ -3847,10 +3847,9 @@ See you in Cabo! ☀️`;
     var DEFAULT_SYNC_URL = "https://script.google.com/macros/s/AKfycbwnKUCCXJrgkzLU1z665lDnnU1B6voYeuvdU9INNmWfXgeHPsJAapGUNR9yEafoLlJY/exec";
 
     function initializeCRM() {
-      // Auto-set sync URL on any fresh device that doesn't have it yet
-      if (!localStorage.getItem("aetherion_sync_url")) {
-        localStorage.setItem("aetherion_sync_url", DEFAULT_SYNC_URL);
-      }
+      // Always sync to the latest DEFAULT_SYNC_URL so stale URLs from old deployments
+      // get corrected automatically on every device's next page load
+      localStorage.setItem("aetherion_sync_url", DEFAULT_SYNC_URL);
       CloudSync.init();
 
       // Listen for data changes made in any other open tab and refresh this one
