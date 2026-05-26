@@ -2096,7 +2096,6 @@
             <i class="ti ti-alert-circle"></i>
             <span id="metric-alerts-val">0 Alerts</span>
           </div>
-          <div class="sync-chip" id="sync-status-chip" title="Cross-device sync status"><i class="ti ti-cloud-off" style="font-size:12px;"></i> Local Only</div>
         </div>
       </header>
 
@@ -2920,16 +2919,43 @@
           fetch(_fbUrl(url), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(fbPayload) })
             .then(function(r) { _setChip(r.ok); }).catch(function() { _setChip(false); });
         } else {
-          // text/plain is a "simple" CORS content-type — no preflight OPTIONS needed.
-          // Apps Script reads the body via e.postData.contents and parses it as JSON.
-          // Using normal CORS mode so we can actually verify r.ok instead of guessing.
-          fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain" },
-            body: JSON.stringify(payload)
-          })
-          .then(function(r) { _setChip(r.ok); })
-          .catch(function() { _setChip(false); });
+          // Form submission via hidden iframe bypasses all CORS restrictions.
+          // Browsers send form POSTs cross-origin without any CORS checks.
+          // Apps Script receives the data in e.parameter.d and saves it.
+          var iframeName = "_csync_" + Date.now();
+          var iframe = document.createElement("iframe");
+          iframe.name = iframeName;
+          iframe.style.cssText = "display:none;position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;";
+          document.body.appendChild(iframe);
+
+          var form = document.createElement("form");
+          form.method = "POST";
+          form.action = url;
+          form.target = iframeName;
+          form.style.display = "none";
+
+          var field = document.createElement("input");
+          field.type = "hidden";
+          field.name = "d";
+          field.value = JSON.stringify(payload);
+          form.appendChild(field);
+          document.body.appendChild(form);
+          form.submit();
+
+          // Verify the save succeeded by reading back after Apps Script processes it
+          setTimeout(function() {
+            fetch(url + "?verify=" + ts)
+              .then(function(r) { return r.ok ? r.json() : null; })
+              .then(function(data) {
+                var saved = data && parseInt(data.cabo_last_updated || "0");
+                _setChip(!!(saved && saved.toString() === ts));
+              })
+              .catch(function() { _setChip(false); })
+              .finally(function() {
+                try { document.body.removeChild(form); } catch(e2) {}
+                try { document.body.removeChild(iframe); } catch(e2) {}
+              });
+          }, 3000);
         }
       }
 
@@ -5704,7 +5730,7 @@ See you in Cabo! ☀️`;
           <p style="font-size:11px; color:var(--text-muted); margin-bottom:8px;"><strong style="color:var(--gold);">Don&apos;t have an Apps Script yet?</strong> Go to <strong>script.google.com</strong>, create a new project, paste the code below, then click <em>Deploy &rarr; New Deployment &rarr; Web App</em> and set <em>Who has access</em> to <strong>Anyone</strong>. Copy the URL and paste it above.</p>
           <details style="margin-top:6px;">
             <summary style="font-size:11px; color:var(--teal); cursor:pointer; font-weight:600;">Show Google Apps Script code to copy</summary>
-            <textarea readonly onclick="this.select()" style="width:100%; height:260px; margin-top:8px; background:var(--surface-alt,#1a1f2e); color:var(--text); font-family:monospace; font-size:10px; border:1px solid var(--border); border-radius:6px; padding:10px; resize:vertical;">var FILE_NAME = "CaboCRM_Sync_Data.json";
+            <textarea readonly onclick="this.select()" style="width:100%; height:320px; margin-top:8px; background:var(--surface-alt,#1a1f2e); color:var(--text); font-family:monospace; font-size:10px; border:1px solid var(--border); border-radius:6px; padding:10px; resize:vertical;">var FILE_NAME = "CaboCRM_Sync_Data.json";
 
 function getOrCreateFile() {
   var files = DriveApp.getFilesByName(FILE_NAME);
@@ -5713,28 +5739,41 @@ function getOrCreateFile() {
 }
 
 function doGet(e) {
-  var file = getOrCreateFile();
-  var content = file.getBlob().getDataAsString();
-  return ContentService.createTextOutput(content)
-    .setMimeType(ContentService.MimeType.JSON);
+  try {
+    var file = getOrCreateFile();
+    var content = file.getBlob().getDataAsString() || "{}";
+    return ContentService.createTextOutput(content)
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ _error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
   try {
-    var data = JSON.parse(e.postData.contents);
+    // Accept data from form field "d" (sent by CRM via form POST)
+    // or from raw JSON body (sent by direct fetch)
+    var raw = (e.parameter && e.parameter.d) || (e.postData && e.postData.contents) || "";
+    if (!raw) throw new Error("No data received");
+    var data = JSON.parse(raw);
     var file = getOrCreateFile();
     var existing = {};
-    try { existing = JSON.parse(file.getBlob().getDataAsString()); } catch(ex) {}
+    try { existing = JSON.parse(file.getBlob().getDataAsString() || "{}"); } catch(ex) {}
     var incomingTs = parseInt(data.cabo_last_updated || "0");
     var existingTs = parseInt(existing.cabo_last_updated || "0");
     if (incomingTs >= existingTs) {
       file.setContent(JSON.stringify(data));
     }
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, ts: incomingTs }))
+    return ContentService.createTextOutput(JSON.stringify({ ok: true }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch(err) {
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
 }</textarea>
           </details>
