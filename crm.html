@@ -2920,9 +2920,16 @@
           fetch(_fbUrl(url), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(fbPayload) })
             .then(function(r) { _setChip(r.ok); }).catch(function() { _setChip(false); });
         } else {
-          // no-cors required for Google Apps Script -- response is opaque but data IS saved
-          fetch(url, { method:"POST", mode:"no-cors", body:JSON.stringify(payload) })
-            .then(function() { _setChip(true); }).catch(function() { _setChip(false); });
+          // text/plain is a "simple" CORS content-type — no preflight OPTIONS needed.
+          // Apps Script reads the body via e.postData.contents and parses it as JSON.
+          // Using normal CORS mode so we can actually verify r.ok instead of guessing.
+          fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: JSON.stringify(payload)
+          })
+          .then(function(r) { _setChip(r.ok); })
+          .catch(function() { _setChip(false); });
         }
       }
 
