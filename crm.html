@@ -3236,9 +3236,12 @@
         const guests = db.getGuests();
         guest.updatedAt = Date.now();
         if (!guest.id) {
-          const maxIdNum = guests.reduce((max, g) => {
-            const num = parseInt(g.id.replace("G-", ""));
-            return num > max ? num : max;
+          let tombGuests = [];
+          try { tombGuests = (JSON.parse(localStorage.getItem("aetherion_tombstones") || "{}").guests) || []; } catch(e) {}
+          const allIds = guests.map(g => g.id).concat(tombGuests);
+          const maxIdNum = allIds.reduce((max, id) => {
+            const num = parseInt((id || "").replace("G-", ""));
+            return isNaN(num) ? max : (num > max ? num : max);
           }, 1000);
           guest.id = `G-${maxIdNum + 1}`;
           guests.push(guest);
