@@ -2784,9 +2784,6 @@
     //  web app backed by Google Sheets (user's own Google account).
     //  Configure the script URL once in Settings > Data Management.
     // ----------------------------------------------------------------
-    // Default Google Apps Script sync URL (redeploy with "Anyone" access to activate)
-    var APPS_SCRIPT_DEFAULT_URL = "https://script.google.com/macros/s/AKfycbw7Ar_jS4g1MEFZjIWBAIcZajIt-uhpqTet8DTX--EUWpHyte2hrxKF3AjxQoBmhsNOyQ/exec";
-
     var CloudSync = (function() {
       var KEYS = ["cabo_users","cabo_guests","cabo_bookings",
                   "cabo_tasks","cabo_operators","cabo_resorts","cabo_settings"];
@@ -2796,8 +2793,7 @@
       var _origSet = null;
 
       function _getUrl() {
-        var u = (localStorage.getItem("cabo_sync_url") || "").trim();
-        return u || APPS_SCRIPT_DEFAULT_URL;
+        return (localStorage.getItem("cabo_sync_url") || "").trim();
       }
 
       function _isFirebase(url) {
@@ -2841,6 +2837,7 @@
 
       function _push() {
         var url = _getUrl();
+        if (!url) { _setChip(false, "No Sync URL"); return; }
         var ts = Date.now().toString();
         var payload = { cabo_last_updated: ts };
         KEYS.forEach(function(k) {
@@ -2851,7 +2848,6 @@
         _setChip(false, "Syncing…");
 
         if (_isFirebase(url)) {
-          // Firebase Realtime Database — PUT with _ts alias
           var fbPayload = Object.assign({ _ts: parseInt(ts) }, payload);
           fetch(_fbUrl(url), {
             method: "PUT",
@@ -2861,15 +2857,19 @@
           .then(function(r) { _setChip(r.ok); })
           .catch(function() { _setChip(false); });
         } else {
-          // Google Apps Script — POST (same format as original)
-          fetch(url, { method: "POST", body: JSON.stringify(payload) })
-            .then(function(r) { _setChip(r.ok); })
-            .catch(function() { _setChip(false); });
+          fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          })
+          .then(function(r) { _setChip(r.ok); })
+          .catch(function() { _setChip(false); });
         }
       }
 
       function _pull() {
         var url = _getUrl();
+        if (!url) { _setChip(false, "No Sync URL"); return; }
         var fetchUrl = _isFirebase(url) ? (_fbUrl(url) + "?nc=" + Date.now()) : (url + "?t=" + Date.now());
 
         fetch(fetchUrl)
@@ -2878,7 +2878,6 @@
             if (!remote) { _push(); return; }
 
             var localTs = _localTs();
-            // Support both Apps Script format (cabo_last_updated) and Firebase (_ts)
             var remoteTs = parseInt(remote.cabo_last_updated || remote._ts || "0");
 
             if (remoteTs > localTs) {
@@ -2907,7 +2906,9 @@
 
       function _startPolling() {
         clearInterval(_pollTimer);
-        _pollTimer = setInterval(_pull, 15000);
+        _pollTimer = setInterval(function() {
+          if (_getUrl()) _pull();
+        }, 15000);
       }
 
       return {
@@ -2921,13 +2922,13 @@
               _debounceTimer = setTimeout(_push, 800);
             }
           };
-          _pull();
+          if (_getUrl()) { _pull(); } else { _setChip(false, "No Sync URL"); }
           _startPolling();
           this.active = true;
         },
         reload: function() {
           clearInterval(_pollTimer);
-          _pull();
+          if (_getUrl()) { _pull(); } else { _setChip(false, "No Sync URL"); }
           _startPolling();
         },
         pushNow: function() { _push(); }
@@ -3628,7 +3629,10 @@ See you in Cabo! ☀️`;
     }
 
     function initializeCRM() {
-      // Start cross-device sync (Firebase) — does nothing if config not filled in
+      // Auto-clear the old broken deployment URL so sync doesn't silently fail
+      var BROKEN = "AKfycbw7Ar_jS4g1MEFZjIWBAIcZajIt-uhpqTet8DTX--EUWpHyte2hrxKF3AjxQoBmhsNOyQ";
+      var savedUrl = localStorage.getItem("cabo_sync_url") || "";
+      if (savedUrl.indexOf(BROKEN) !== -1) { localStorage.removeItem("cabo_sync_url"); }
       CloudSync.init();
 
       // Listen for data changes made in any other open tab and refresh this one
@@ -5573,11 +5577,48 @@ See you in Cabo! ☀️`;
 
         <div class="settings-section">
           <h2 class="serif" style="font-size:14px; color:var(--gold);">Google Account Sync</h2>
-          <p style="font-size:12px; color:var(--text-muted); margin:8px 0 12px;">Paste your Google Apps Script URL below. All devices with this URL will share the same data automatically.</p>
-          <div class="inline-add-row">
-            <input id="sync-url-input" type="text" class="form-input" placeholder="https://script.google.com/macros/s/..." value="${localStorage.getItem("cabo_sync_url") || APPS_SCRIPT_DEFAULT_URL}" />
+          <p style="font-size:12px; color:var(--text-muted); margin:8px 0 4px;">Paste your Google Apps Script Web App URL below. Every device that uses this same URL will share and see all data in real time.</p>
+          <div class="inline-add-row" style="margin-bottom:14px;">
+            <input id="sync-url-input" type="text" class="form-input" placeholder="https://script.google.com/macros/s/..." value="${localStorage.getItem("cabo_sync_url") || ""}" />
             <button onclick="saveSyncUrl()" class="btn btn-primary"><i class="ti ti-check"></i> Save</button>
           </div>
+          <p style="font-size:11px; color:var(--text-muted); margin-bottom:8px;"><strong style="color:var(--gold);">Don&apos;t have an Apps Script yet?</strong> Go to <strong>script.google.com</strong>, create a new project, paste the code below, then click <em>Deploy &rarr; New Deployment &rarr; Web App</em> and set <em>Who has access</em> to <strong>Anyone</strong>. Copy the URL and paste it above.</p>
+          <details style="margin-top:6px;">
+            <summary style="font-size:11px; color:var(--teal); cursor:pointer; font-weight:600;">Show Google Apps Script code to copy</summary>
+            <textarea readonly onclick="this.select()" style="width:100%; height:260px; margin-top:8px; background:var(--surface-alt,#1a1f2e); color:var(--text); font-family:monospace; font-size:10px; border:1px solid var(--border); border-radius:6px; padding:10px; resize:vertical;">var FILE_NAME = "CaboCRM_Sync_Data.json";
+
+function getOrCreateFile() {
+  var files = DriveApp.getFilesByName(FILE_NAME);
+  if (files.hasNext()) return files.next();
+  return DriveApp.createFile(FILE_NAME, "{}", MimeType.PLAIN_TEXT);
+}
+
+function doGet(e) {
+  var file = getOrCreateFile();
+  var content = file.getBlob().getDataAsString();
+  return ContentService.createTextOutput(content)
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var file = getOrCreateFile();
+    var existing = {};
+    try { existing = JSON.parse(file.getBlob().getDataAsString()); } catch(ex) {}
+    var incomingTs = parseInt(data.cabo_last_updated || "0");
+    var existingTs = parseInt(existing.cabo_last_updated || "0");
+    if (incomingTs >= existingTs) {
+      file.setContent(JSON.stringify(data));
+    }
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, ts: incomingTs }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}</textarea>
+          </details>
         </div>
 
         <div class="settings-section">
@@ -5594,9 +5635,19 @@ See you in Cabo! ☀️`;
 
     function saveSyncUrl() {
       var url = (document.getElementById("sync-url-input").value || "").trim();
-      localStorage.setItem("cabo_sync_url", url);
+      // Reject the old broken deployment URL silently
+      var BROKEN = "AKfycbw7Ar_jS4g1MEFZjIWBAIcZajIt-uhpqTet8DTX--EUWpHyte2hrxKF3AjxQoBmhsNOyQ";
+      if (url.indexOf(BROKEN) !== -1) {
+        window.CaboComponents.showToast("That URL is from an old deployment and won’t work. Please deploy a new Apps Script and paste the new URL.", "error");
+        return;
+      }
+      if (url) {
+        localStorage.setItem("cabo_sync_url", url);
+      } else {
+        localStorage.removeItem("cabo_sync_url");
+      }
       CloudSync.reload();
-      window.CaboComponents.showToast(url ? "Sync URL saved — syncing now." : "Sync URL cleared.", "success");
+      window.CaboComponents.showToast(url ? "Sync URL saved — connecting now…" : "Sync URL cleared. Running in local-only mode.", "success");
     }
 
     function saveGeneralSettings() {
