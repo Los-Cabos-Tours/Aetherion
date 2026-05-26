@@ -3075,6 +3075,42 @@
     })();
 
 
+    // Migrate any data stored under the old cabo_ key prefix to aetherion_ keys.
+    // Runs once on first load of the new version; no-op if already migrated.
+    (function migrateCaboKeys() {
+      var map = [
+        ["cabo_guests",           "aetherion_guests"],
+        ["cabo_bookings",         "aetherion_bookings"],
+        ["cabo_tasks",            "aetherion_tasks"],
+        ["cabo_users",            "aetherion_users"],
+        ["cabo_operators",        "aetherion_operators"],
+        ["cabo_resorts",          "aetherion_resorts"],
+        ["cabo_activity_log",     "aetherion_activitylog"],
+        ["cabo_settings",         "aetherion_settings"],
+        ["cabo_tombstones",       "aetherion_tombstones"],
+        ["cabo_sync_url",         "aetherion_sync_url"],
+        ["cabo_deleted_defaults", "aetherion_deleted_defaults"],
+        ["cabo_crm_initialized",  "aetherion_initialized"],
+        ["cabo_last_updated",     "aetherion_last_updated"]
+      ];
+      map.forEach(function(pair) {
+        var oldKey = pair[0], newKey = pair[1];
+        var oldVal = localStorage.getItem(oldKey);
+        if (oldVal !== null && localStorage.getItem(newKey) === null) {
+          localStorage.setItem(newKey, oldVal);
+        }
+        if (oldVal !== null) localStorage.removeItem(oldKey);
+      });
+      // Migrate session: cabo_session (sessionStorage) → aetherion_user (localStorage)
+      try {
+        var oldSession = sessionStorage.getItem("cabo_session");
+        if (oldSession && !localStorage.getItem("aetherion_user")) {
+          localStorage.setItem("aetherion_user", oldSession);
+        }
+        if (oldSession) sessionStorage.removeItem("cabo_session");
+      } catch(e) {}
+    })();
+
     function initializeDB() {
       // Always merge DEFAULT_USERS so any browser always has the base team accounts.
       // If a default user already exists but the default has a higher credV, update
