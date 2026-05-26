@@ -6006,14 +6006,12 @@ See you in Cabo! ☀️`;
     }
 
     function handleLogout() {
-      if (confirm("Sign out of Aetherion?")) {
-        const user = getCurrentUser();
-        if (user) window.CaboDB.logActivity(null, "system", "User signed out: " + user.name, {});
-        localStorage.removeItem("aetherion_user");
-        document.getElementById("login-username").value = "";
-        document.getElementById("login-password").value = "";
-        showLoginScreen();
-      }
+      const user = getCurrentUser();
+      if (user) window.CaboDB.logActivity(null, "system", "User signed out: " + user.name, {});
+      localStorage.removeItem("aetherion_user");
+      document.getElementById("login-username").value = "";
+      document.getElementById("login-password").value = "";
+      showLoginScreen();
     }
 
     function updateSidebarForRole() {
