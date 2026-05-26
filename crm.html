@@ -2604,11 +2604,11 @@
 
     const DEFAULT_USERS = [
       { id: "U-001", username: "developer", password: "Admin2026", name: "Developer", role: "superadmin", email: "hugosolishcbpo2026@gmail.com", phone: "6646041633", active: true, createdAt: "2026-01-01", credV: 1 },
-      { id: "U-002", username: "ana", password: "Cabos2026", name: "Ana Calderon", role: "admin", email: "ana@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
+      { id: "U-002", username: "ana", password: "Cabos2026", name: "Ana Calderon", role: "admin", email: "ana@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 2 },
       { id: "U-003", username: "carlos", password: "Runner2026", name: "Carlos Runner", role: "staff", email: "carlos@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
       { id: "U-004", username: "sofia", password: "Lobby2026", name: "Sofia Lobby Host", role: "staff", email: "sofia@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
       { id: "U-005", username: "manuel", password: "Drive2026", name: "Manuel Driver", role: "staff", email: "manuel@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 },
-      { id: "U-006", username: "leopobleteceo", password: "Cabo2026", name: "Leo Poblete", role: "admin", email: "leo@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 1 }
+      { id: "U-006", username: "leopobleteceo", password: "Cabo2026", name: "Leo Poblete", role: "admin", email: "leo@loscabostours.com", active: true, createdAt: "2026-01-01", credV: 2 }
     ];
 
     const ROLE_ACCESS = {
@@ -3119,7 +3119,8 @@
       let storedUsers = JSON.parse(localStorage.getItem("aetherion_users") || "[]");
       const deletedDefaults = JSON.parse(localStorage.getItem("aetherion_deleted_defaults") || "[]");
       DEFAULT_USERS.forEach(function(du) {
-        if (deletedDefaults.indexOf(du.id) !== -1) return; // user was explicitly deleted, never re-add
+        // credV >= 2 = protected account; always restore even if previously deleted
+        if (deletedDefaults.indexOf(du.id) !== -1 && (du.credV || 1) < 2) return;
         const idx = storedUsers.findIndex(function(u) { return u.id === du.id; });
         if (idx === -1) {
           storedUsers.push(du);
@@ -6104,7 +6105,7 @@ See you in Cabo! ☀️`;
         <div class="filter-row">
           <div>
             <div style="font-size:13px; color:var(--text-muted);">Manage team logins, passwords, and tab access permissions.</div>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;"><strong style="color:var(--gold);">Default credentials:</strong> developer / Admin2026 &bull; ana / Cabos2026 &bull; carlos / Runner2026</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;"><strong style="color:var(--gold);">Default credentials:</strong> developer / Admin2026 &bull; ana / Cabos2026 &bull; leo / Cabo2026 &bull; carlos / Runner2026</div>
           </div>
           <button onclick="openUserModal()" class="btn btn-primary"><i class="ti ti-user-plus"></i> Create User</button>
         </div>
