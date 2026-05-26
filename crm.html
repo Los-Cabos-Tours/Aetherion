@@ -5722,61 +5722,11 @@ See you in Cabo! ☀️`;
 
         <div class="settings-section">
           <h2 class="serif" style="font-size:14px; color:var(--gold);">Google Account Sync</h2>
-          <p style="font-size:12px; color:var(--text-muted); margin:8px 0 4px;">Paste your Google Apps Script Web App URL below. Every device that uses this same URL will share and see all data in real time.</p>
-          <div class="inline-add-row" style="margin-bottom:14px;">
+          <p style="font-size:12px; color:var(--text-muted); margin:8px 0 12px;">Paste your Google Apps Script URL below. All devices with this URL will share the same data automatically.</p>
+          <div class="inline-add-row">
             <input id="sync-url-input" type="text" class="form-input" placeholder="https://script.google.com/macros/s/..." value="${localStorage.getItem("cabo_sync_url") || ""}" />
             <button onclick="saveSyncUrl()" class="btn btn-primary"><i class="ti ti-check"></i> Save</button>
           </div>
-          <p style="font-size:11px; color:var(--text-muted); margin-bottom:8px;"><strong style="color:var(--gold);">Don&apos;t have an Apps Script yet?</strong> Go to <strong>script.google.com</strong>, create a new project, paste the code below, then click <em>Deploy &rarr; New Deployment &rarr; Web App</em> and set <em>Who has access</em> to <strong>Anyone</strong>. Copy the URL and paste it above.</p>
-          <details style="margin-top:6px;">
-            <summary style="font-size:11px; color:var(--teal); cursor:pointer; font-weight:600;">Show Google Apps Script code to copy</summary>
-            <textarea readonly onclick="this.select()" style="width:100%; height:320px; margin-top:8px; background:var(--surface-alt,#1a1f2e); color:var(--text); font-family:monospace; font-size:10px; border:1px solid var(--border); border-radius:6px; padding:10px; resize:vertical;">var FILE_NAME = "CaboCRM_Sync_Data.json";
-
-function getOrCreateFile() {
-  var files = DriveApp.getFilesByName(FILE_NAME);
-  if (files.hasNext()) return files.next();
-  return DriveApp.createFile(FILE_NAME, "{}", MimeType.PLAIN_TEXT);
-}
-
-function doGet(e) {
-  try {
-    var file = getOrCreateFile();
-    var content = file.getBlob().getDataAsString() || "{}";
-    return ContentService.createTextOutput(content)
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({ _error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-function doPost(e) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    // Accept data from form field "d" (sent by CRM via form POST)
-    // or from raw JSON body (sent by direct fetch)
-    var raw = (e.parameter && e.parameter.d) || (e.postData && e.postData.contents) || "";
-    if (!raw) throw new Error("No data received");
-    var data = JSON.parse(raw);
-    var file = getOrCreateFile();
-    var existing = {};
-    try { existing = JSON.parse(file.getBlob().getDataAsString() || "{}"); } catch(ex) {}
-    var incomingTs = parseInt(data.cabo_last_updated || "0");
-    var existingTs = parseInt(existing.cabo_last_updated || "0");
-    if (incomingTs >= existingTs) {
-      file.setContent(JSON.stringify(data));
-    }
-    return ContentService.createTextOutput(JSON.stringify({ ok: true }))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
-  } finally {
-    lock.releaseLock();
-  }
-}</textarea>
-          </details>
         </div>
 
         <div class="settings-section">
