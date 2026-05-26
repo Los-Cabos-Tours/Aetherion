@@ -3919,12 +3919,10 @@ See you in Cabo! ☀️`;
     }
 
     function resetDatabase() {
-      if (confirm("Reset database? All customized values will be lost.")) {
-        window.CaboDB.reset();
-        window.CaboComponents.showToast("Database reset completed.", "info");
-        updateHeaderCounters();
-        navigate(currentView);
-      }
+      window.CaboDB.reset();
+      window.CaboComponents.showToast("Database reset completed.", "info");
+      updateHeaderCounters();
+      navigate(currentView);
     }
 
     function updateHeaderCounters() {
@@ -4377,7 +4375,11 @@ See you in Cabo! ☀️`;
       resorts.forEach(r => { resortFilterOptions += `<option value="${r}" ${guestHotelFilter === r ? 'selected' : ''}>${r}</option>`; });
       
       const filteredGuests = guests.filter(g => {
-        const matchesSearch = g.name.toLowerCase().includes(guestSearchQuery.toLowerCase()) || g.email.toLowerCase().includes(guestSearchQuery.toLowerCase()) || g.phone.includes(guestSearchQuery);
+        const q = (guestSearchQuery || "").toLowerCase();
+        const name = (g.name || "").toLowerCase();
+        const email = (g.email || "").toLowerCase();
+        const phone = g.phone || "";
+        const matchesSearch = name.includes(q) || email.includes(q) || phone.includes(guestSearchQuery || "");
         const matchesHotel = guestHotelFilter === 'All' || g.hotel === guestHotelFilter;
         const matchesStatus = guestStatusFilter === 'All' || g.status === guestStatusFilter;
         return matchesSearch && matchesHotel && matchesStatus;
@@ -4403,8 +4405,8 @@ See you in Cabo! ☀️`;
                 <div style="font-size:11px; color:var(--text-muted);">${g.email}</div>
               </td>
               <td>
-                <a href="https://wa.me/${g.phone.replace(/\D/g,"")}" target="_blank" style="color:var(--whatsapp); text-decoration:none; font-weight:500; display:inline-flex; align-items:center; gap:5px; font-size:12px;" title="WhatsApp ${g.name}">
-                  <i class="ti ti-brand-whatsapp"></i> ${g.phone}
+                <a href="https://wa.me/${(g.phone||"").replace(/\D/g,"")}" target="_blank" style="color:var(--whatsapp); text-decoration:none; font-weight:500; display:inline-flex; align-items:center; gap:5px; font-size:12px;" title="WhatsApp ${g.name||""}">
+                  <i class="ti ti-brand-whatsapp"></i> ${g.phone||"—"}
                 </a>
               </td>
               <td>
@@ -4809,7 +4811,6 @@ See you in Cabo! ☀️`;
       window.CaboComponents.showToast("Operator saved.", "success");
     }
     function confirmDeleteOperator(id) {
-      if (!confirm("Delete this operator? This cannot be undone.")) return;
       const op = window.CaboDB.getOperators().find(o => o.id === id);
       const operators = window.CaboDB.getOperators().filter(o => o.id !== id);
       localStorage.setItem("aetherion_operators", JSON.stringify(operators));
@@ -5000,15 +5001,14 @@ See you in Cabo! ☀️`;
 
     function confirmDeleteGuest(id) {
       const g = window.CaboDB.getGuest(id);
-      if (g && confirm(`Delete ${g.name}? All bookings & logs will be deleted.`)) {
-        window.CaboDB.logActivity(id, "system", "Guest profile deleted: " + g.name + " (" + g.hotel + ")", {});
-        window.CaboDB.deleteGuest(id);
-        window.CaboComponents.showToast("Guest profile deleted.", "info");
-        hideGuestDrawer();
-        if (currentView === 'guests') renderGuestsView(document.getElementById("app-view"));
-        if (currentView === 'dashboard') renderDashboardView(document.getElementById("app-view"));
-        updateHeaderCounters();
-      }
+      if (!g) return;
+      window.CaboDB.logActivity(id, "system", "Guest profile deleted: " + g.name + " (" + g.hotel + ")", {});
+      window.CaboDB.deleteGuest(id);
+      window.CaboComponents.showToast(`Guest "${g.name}" deleted.`, "info");
+      hideGuestDrawer();
+      if (currentView === 'guests') renderGuestsView(document.getElementById("app-view"));
+      if (currentView === 'dashboard') renderDashboardView(document.getElementById("app-view"));
+      updateHeaderCounters();
     }
 
     let catalogActiveFilter = "All";
@@ -5349,15 +5349,13 @@ See you in Cabo! ☀️`;
 
     function confirmDeleteBooking(bookingId, guestId = '') {
       const b = window.CaboDB.getBooking(bookingId);
-      if (confirm("Cancel and delete this booking?")) {
-        if (b) window.CaboDB.logActivity(b.guestId, "system", "Booking deleted: " + b.serviceName + " on " + b.date + " [" + b.id + "]", {});
-        window.CaboDB.deleteBooking(bookingId);
-        window.CaboComponents.showToast("Booking removed.", "info");
-        if (currentView === 'bookings') renderBookingsView(document.getElementById("app-view"));
-        if (currentView === 'dashboard') renderDashboardView(document.getElementById("app-view"));
-        updateHeaderCounters();
-        if (guestId) openGuestDrawer(guestId);
-      }
+      if (b) window.CaboDB.logActivity(b.guestId, "system", "Booking deleted: " + b.serviceName + " on " + b.date + " [" + b.id + "]", {});
+      window.CaboDB.deleteBooking(bookingId);
+      window.CaboComponents.showToast("Booking removed.", "info");
+      if (currentView === 'bookings') renderBookingsView(document.getElementById("app-view"));
+      if (currentView === 'dashboard') renderDashboardView(document.getElementById("app-view"));
+      updateHeaderCounters();
+      if (guestId) openGuestDrawer(guestId);
     }
 
     function openTaskWizard(guestId = '', taskId = '') {
@@ -5431,15 +5429,13 @@ See you in Cabo! ☀️`;
 
     function confirmDeleteTask(taskId, guestId = '') {
       const t = window.CaboDB.getTask(taskId);
-      if (confirm("Delete this concierge task?")) {
-        if (t) window.CaboDB.logActivity(t.guestId, "system", "Concierge task deleted: " + t.title + " [" + t.id + "]", {});
-        window.CaboDB.deleteTask(taskId);
-        window.CaboComponents.showToast("Task removed.", "info");
-        if (currentView === 'concierge') renderConciergeView(document.getElementById("app-view"));
-        if (currentView === 'dashboard') renderDashboardView(document.getElementById("app-view"));
-        updateHeaderCounters();
-        if (guestId) openGuestDrawer(guestId);
-      }
+      if (t) window.CaboDB.logActivity(t.guestId, "system", "Concierge task deleted: " + t.title + " [" + t.id + "]", {});
+      window.CaboDB.deleteTask(taskId);
+      window.CaboComponents.showToast("Task removed.", "info");
+      if (currentView === 'concierge') renderConciergeView(document.getElementById("app-view"));
+      if (currentView === 'dashboard') renderDashboardView(document.getElementById("app-view"));
+      updateHeaderCounters();
+      if (guestId) openGuestDrawer(guestId);
     }
 
     // =====================================================================
@@ -5658,7 +5654,7 @@ See you in Cabo! ☀️`;
           <div style="font-size:13px; color:var(--text-muted);">Complete audit trail of all CRM activities. Every booking, task, WhatsApp send, and status change is recorded here and per guest profile.</div>
           <div style="display:flex; gap:8px;">
             <button onclick="exportAllHistoryCSV()" class="btn btn-secondary"><i class="ti ti-table-export"></i> Export All CSV</button>
-            <button onclick="if(confirm('Clear all activity logs?')){ window.CaboDB.clearActivityLog(); navigate('history'); window.CaboComponents.showToast('Activity log cleared.','info'); }" class="btn btn-danger" style="font-size:11px;"><i class="ti ti-trash"></i> Clear Log</button>
+            <button onclick="window.CaboDB.clearActivityLog(); navigate('history'); window.CaboComponents.showToast('Activity log cleared.','info');" class="btn btn-danger" style="font-size:11px;"><i class="ti ti-trash"></i> Clear Log</button>
           </div>
         </div>
         <div class="table-container">
@@ -5864,7 +5860,6 @@ See you in Cabo! ☀️`;
     function removeTeamMember(idx) {
       const s = window.CaboDB.getSettings();
       const name = s.teamMembers[idx];
-      if (!confirm(`Remove "${name}" from the team?`)) return;
       s.teamMembers.splice(idx, 1);
       window.CaboDB.saveSettings(s);
       editingTeamMemberIdx = -1;
@@ -5888,7 +5883,6 @@ See you in Cabo! ☀️`;
     function removeResort(idx) {
       const resorts = window.CaboDB.getResorts();
       const name = resorts[idx];
-      if (!confirm(`Remove "${name}" from the resort list?`)) return;
       resorts.splice(idx, 1);
       localStorage.setItem("aetherion_resorts", JSON.stringify(resorts));
       editingResortIdx = -1;
@@ -6019,13 +6013,13 @@ See you in Cabo! ☀️`;
       const ADMIN_EMAIL = "hugosolishcbpo2026@gmail.com";
       if (method === "phone") {
         const phone = document.getElementById("forgot-phone-input").value.trim();
-        if (!phone) { alert("Please enter your phone number."); return; }
+        if (!phone) { window.CaboComponents.showToast("Please enter your phone number.", "error"); return; }
         const msg = encodeURIComponent("Hello, I forgot my Aetherion CRM username or password. My phone is: " + phone + ". Please send my recovery credentials.");
         window.open("https://wa.me/" + ADMIN_PHONE + "?text=" + msg, "_blank");
         document.getElementById("forgot-sent-msg").textContent = "Recovery request sent via WhatsApp.";
       } else {
         const email = document.getElementById("forgot-email-input").value.trim();
-        if (!email) { alert("Please enter your email address."); return; }
+        if (!email) { window.CaboComponents.showToast("Please enter your email address.", "error"); return; }
         const subject = encodeURIComponent("Aetherion CRM — Account Recovery Request");
         const body = encodeURIComponent("Hello,\n\nI forgot my Aetherion CRM login credentials.\nMy registered email: " + email + "\n\nPlease send my username and a temporary password.\n\nThank you.");
         window.open("mailto:" + ADMIN_EMAIL + "?subject=" + subject + "&body=" + body, "_blank");
@@ -6295,15 +6289,13 @@ See you in Cabo! ☀️`;
       if (!user) return;
       const current = getCurrentUser();
       if (current && current.id === userId) {
-        alert("You cannot delete your own account while signed in.");
+        window.CaboComponents.showToast("You cannot delete your own account while signed in.", "error");
         return;
       }
-      if (confirm("Delete user account for '" + user.name + "'? This cannot be undone.")) {
-        window.CaboDB.deleteUser(userId);
-        navigate("users");
-        window.CaboComponents.showToast("User " + user.name + " deleted.", "info");
-        window.CaboDB.logActivity(null, "system", "User deleted: " + user.name + " (@" + user.username + ")", {});
-      }
+      window.CaboDB.deleteUser(userId);
+      navigate("users");
+      window.CaboComponents.showToast("User " + user.name + " deleted.", "info");
+      window.CaboDB.logActivity(null, "system", "User deleted: " + user.name + " (@" + user.username + ")", {});
     }
 
     // ================================================================
