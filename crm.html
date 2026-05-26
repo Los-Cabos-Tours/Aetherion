@@ -2908,143 +2908,136 @@
 
       function _push() {
         var url = _getUrl();
-        if (!url) { _setChip(false, "No Sync URL"); return; }
+        if (!url) { return; }
         var ts = Date.now().toString();
         var payload = { cabo_last_updated: ts };
         KEYS.forEach(function(k) { var v = _origGet(k); if (v != null) payload[k] = v; });
         _origSet("cabo_last_updated", ts);
-        _setChip(false, "Syncing...");
         if (_isFirebase(url)) {
           var fbPayload = Object.assign({ _ts: parseInt(ts) }, payload);
           fetch(_fbUrl(url), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(fbPayload) })
-            .then(function(r) { _setChip(r.ok); }).catch(function() { _setChip(false); });
+            .then(function() {}).catch(function() {});
         } else {
-          // Form submission via hidden iframe bypasses all CORS restrictions.
-          // Browsers send form POSTs cross-origin without any CORS checks.
-          // Apps Script receives the data in e.parameter.d and saves it.
-          var iframeName = "_csync_" + Date.now();
-          var iframe = document.createElement("iframe");
-          iframe.name = iframeName;
-          iframe.style.cssText = "display:none;position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;";
-          document.body.appendChild(iframe);
-
-          var form = document.createElement("form");
-          form.method = "POST";
-          form.action = url;
-          form.target = iframeName;
-          form.style.display = "none";
-
-          var field = document.createElement("input");
-          field.type = "hidden";
-          field.name = "d";
-          field.value = JSON.stringify(payload);
-          form.appendChild(field);
-          document.body.appendChild(form);
-          form.submit();
-
-          // Verify the save succeeded by reading back after Apps Script processes it
-          setTimeout(function() {
-            fetch(url + "?verify=" + ts)
-              .then(function(r) { return r.ok ? r.json() : null; })
-              .then(function(data) {
-                var saved = data && parseInt(data.cabo_last_updated || "0");
-                _setChip(!!(saved && saved.toString() === ts));
-              })
-              .catch(function() { _setChip(false); })
-              .finally(function() {
-                try { document.body.removeChild(form); } catch(e2) {}
-                try { document.body.removeChild(iframe); } catch(e2) {}
-              });
-          }, 3000);
+          // no-cors POST: browser sends the request cross-origin with no CORS check.
+          // Apps Script receives the body in e.postData.contents and saves it.
+          fetch(url, { method:"POST", mode:"no-cors", body:JSON.stringify(payload) })
+            .then(function() {}).catch(function() {});
         }
+      }
+
+      // JSONP read: creates a <script> tag which bypasses CORS entirely.
+      // Apps Script wraps the JSON in the callback name and the browser executes it.
+      function _jsonpGet(url, cb) {
+        var name = "_cabo_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
+        var script = document.createElement("script");
+        var done = false;
+        var tid = setTimeout(function() {
+          if (done) return;
+          done = true;
+          delete window[name];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          cb(null);
+        }, 8000);
+        window[name] = function(data) {
+          if (done) return;
+          done = true;
+          clearTimeout(tid);
+          delete window[name];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          cb(data);
+        };
+        script.onerror = function() {
+          if (done) return;
+          done = true;
+          clearTimeout(tid);
+          delete window[name];
+          cb(null);
+        };
+        script.src = url + (url.indexOf("?") >= 0 ? "&" : "?") + "callback=" + name + "&t=" + Date.now();
+        document.head.appendChild(script);
       }
 
       function _pull() {
         var url = _getUrl();
-        if (!url) { _setChip(false, "No Sync URL"); return; }
-        var fetchUrl = _isFirebase(url) ? (_fbUrl(url) + "?nc=" + Date.now()) : (url + "?t=" + Date.now());
+        if (!url) { return; }
 
-        fetch(fetchUrl)
-          .then(function(r) { return r.ok ? r.json() : null; })
-          .then(function(remote) {
-            if (!remote || !remote.cabo_last_updated) { _push(); return; }
+        var doMerge = function(remote) {
+          if (!remote || !remote.cabo_last_updated) { _push(); return; }
 
-            // Step 1 -- merge tombstones so we know what was deleted on any device
-            var mergedTombsStr = _mergeTombs(_origGet("cabo_tombstones"), remote.cabo_tombstones);
-            var mergedTombs = {};
-            try { mergedTombs = JSON.parse(mergedTombsStr); } catch(e) {}
-            var changed = false;
+          var mergedTombsStr = _mergeTombs(_origGet("cabo_tombstones"), remote.cabo_tombstones);
+          var mergedTombs = {};
+          try { mergedTombs = JSON.parse(mergedTombsStr); } catch(e) {}
+          var changed = false;
 
-            // Step 2 -- merge each ID-based array (guests, bookings, tasks, users, operators)
-            MERGE_KEYS.forEach(function(k) {
-              if (!remote[k]) return;
-              var localArr = [], remoteArr = [];
-              try { localArr = JSON.parse(_origGet(k) || "[]"); } catch(e) {}
-              try { remoteArr = JSON.parse(remote[k]); } catch(e) {}
-              var type = k.replace("cabo_", "");
-              var tombSet = {};
-              (mergedTombs[type] || []).forEach(function(id) { tombSet[id] = true; });
-              var mergedArr = _mergeArr(localArr, remoteArr, tombSet);
-              var mergedStr = JSON.stringify(mergedArr);
-              if (mergedStr !== _origGet(k)) {
-                _writing = true; _origSet(k, mergedStr); _writing = false; changed = true;
+          MERGE_KEYS.forEach(function(k) {
+            if (!remote[k]) return;
+            var localArr = [], remoteArr = [];
+            try { localArr = JSON.parse(_origGet(k) || "[]"); } catch(e) {}
+            try { remoteArr = JSON.parse(remote[k]); } catch(e) {}
+            var type = k.replace("cabo_", "");
+            var tombSet = {};
+            (mergedTombs[type] || []).forEach(function(id) { tombSet[id] = true; });
+            var mergedArr = _mergeArr(localArr, remoteArr, tombSet);
+            var mergedStr = JSON.stringify(mergedArr);
+            if (mergedStr !== _origGet(k)) {
+              _writing = true; _origSet(k, mergedStr); _writing = false; changed = true;
+            }
+          });
+
+          if (remote.cabo_resorts) {
+            try {
+              var localR = JSON.parse(_origGet("cabo_resorts") || "[]");
+              var remoteR = JSON.parse(remote.cabo_resorts);
+              var rSet = {};
+              localR.forEach(function(r) { rSet[JSON.stringify(r)] = r; });
+              remoteR.forEach(function(r) { var rk = JSON.stringify(r); if (!rSet[rk]) { rSet[rk] = r; } });
+              var mergedRStr = JSON.stringify(Object.keys(rSet).map(function(rk) { return rSet[rk]; }));
+              if (mergedRStr !== _origGet("cabo_resorts")) {
+                _writing = true; _origSet("cabo_resorts", mergedRStr); _writing = false; changed = true;
               }
-            });
+            } catch(e) {}
+          }
 
-            // Step 3 -- merge resorts (string/object union)
-            if (remote.cabo_resorts) {
-              try {
-                var localR = JSON.parse(_origGet("cabo_resorts") || "[]");
-                var remoteR = JSON.parse(remote.cabo_resorts);
-                var rSet = {};
-                localR.forEach(function(r) { rSet[JSON.stringify(r)] = r; });
-                remoteR.forEach(function(r) { var rk = JSON.stringify(r); if (!rSet[rk]) { rSet[rk] = r; } });
-                var mergedRStr = JSON.stringify(Object.keys(rSet).map(function(rk) { return rSet[rk]; }));
-                if (mergedRStr !== _origGet("cabo_resorts")) {
-                  _writing = true; _origSet("cabo_resorts", mergedRStr); _writing = false; changed = true;
-                }
-              } catch(e) {}
-            }
+          var mergedLogStr = _mergeLog(_origGet("cabo_activity_log"), remote.cabo_activity_log);
+          if (mergedLogStr !== _origGet("cabo_activity_log")) {
+            _writing = true; _origSet("cabo_activity_log", mergedLogStr); _writing = false; changed = true;
+          }
 
-            // Step 4 -- merge activity log (union by entry id)
-            var mergedLogStr = _mergeLog(_origGet("cabo_activity_log"), remote.cabo_activity_log);
-            if (mergedLogStr !== _origGet("cabo_activity_log")) {
-              _writing = true; _origSet("cabo_activity_log", mergedLogStr); _writing = false; changed = true;
-            }
+          if (mergedTombsStr !== _origGet("cabo_tombstones")) {
+            _writing = true; _origSet("cabo_tombstones", mergedTombsStr); _writing = false; changed = true;
+          }
 
-            // Step 5 -- save merged tombstones
-            if (mergedTombsStr !== _origGet("cabo_tombstones")) {
-              _writing = true; _origSet("cabo_tombstones", mergedTombsStr); _writing = false; changed = true;
-            }
+          if (remote.cabo_settings) {
+            try {
+              var localS = JSON.parse(_origGet("cabo_settings") || "{}");
+              var remoteS = JSON.parse(remote.cabo_settings);
+              var localTeam = localS.teamMembers || [];
+              var teamSet = {};
+              localTeam.forEach(function(m) { teamSet[m] = true; });
+              var teamAdded = false;
+              (remoteS.teamMembers || []).forEach(function(m) {
+                if (!teamSet[m]) { localTeam.push(m); teamSet[m] = true; teamAdded = true; }
+              });
+              if (teamAdded) {
+                localS.teamMembers = localTeam;
+                _writing = true; _origSet("cabo_settings", JSON.stringify(localS)); _writing = false; changed = true;
+              }
+            } catch(e) {}
+          }
 
-            // Step 6 -- settings: local config wins; only merge the teamMembers list
-            if (remote.cabo_settings) {
-              try {
-                var localS = JSON.parse(_origGet("cabo_settings") || "{}");
-                var remoteS = JSON.parse(remote.cabo_settings);
-                var localTeam = localS.teamMembers || [];
-                var teamSet = {};
-                localTeam.forEach(function(m) { teamSet[m] = true; });
-                var teamAdded = false;
-                (remoteS.teamMembers || []).forEach(function(m) {
-                  if (!teamSet[m]) { localTeam.push(m); teamSet[m] = true; teamAdded = true; }
-                });
-                if (teamAdded) {
-                  localS.teamMembers = localTeam;
-                  _writing = true; _origSet("cabo_settings", JSON.stringify(localS)); _writing = false; changed = true;
-                }
-              } catch(e) {}
-            }
+          var remoteTs = parseInt(remote.cabo_last_updated || remote._ts || "0");
+          _writing = true; _origSet("cabo_last_updated", Math.max(_localTs(), remoteTs).toString()); _writing = false;
+          if (changed) { _push(); _refresh(); }
+        };
 
-            // Step 7 -- advance local timestamp to max seen
-            var remoteTs = parseInt(remote.cabo_last_updated || remote._ts || "0");
-            _writing = true; _origSet("cabo_last_updated", Math.max(_localTs(), remoteTs).toString()); _writing = false;
-
-            _setChip(true);
-            // Push the fully merged dataset back so the server holds the union of all devices
-            if (changed) { _push(); _refresh(); }
-          })
-          .catch(function() { _setChip(false); });
+        if (_isFirebase(url)) {
+          fetch(_fbUrl(url) + "?nc=" + Date.now())
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(doMerge)
+            .catch(function() {});
+        } else {
+          _jsonpGet(url, doMerge);
+        }
       }
 
       function _startPolling() {
