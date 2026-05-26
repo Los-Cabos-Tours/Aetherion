@@ -5572,45 +5572,12 @@ See you in Cabo! ☀️`;
         </div>
 
         <div class="settings-section">
-          <h2 class="serif" style="font-size:14px; color:var(--gold);"><i class="ti ti-brand-google" style="margin-right:6px;"></i>Google Account Sync</h2>
-          <p style="font-size:12px; color:var(--text-muted); margin:8px 0 10px;">Your CRM uses a Google Apps Script to sync data across all phones and computers. Every change is pushed within 15 seconds.</p>
-
-          <div style="background:rgba(212,88,26,0.08); border:1px solid rgba(212,88,26,0.3); border-radius:var(--radius-md); padding:12px 14px; margin-bottom:14px; font-size:12px; color:var(--text-muted); line-height:1.7;">
-            <strong style="color:var(--coral);"><i class="ti ti-alert-circle"></i> Action Required — Fix Script Permissions</strong><br/>
-            The Google Apps Script needs one setting change to allow all staff to sync without logging in to Google:<br/><br/>
-            1&nbsp;· Go to <strong style="color:var(--text);">script.google.com</strong> → open the Aetherion project<br/>
-            2&nbsp;· Click <strong style="color:var(--text);">Deploy → Manage deployments</strong><br/>
-            3&nbsp;· Click the pencil ✏️ icon on the active deployment<br/>
-            4&nbsp;· Change <strong style="color:var(--text);">"Who has access"</strong> to <strong style="color:#5BC78E;">Anyone</strong> (not "Anyone with Google Account")<br/>
-            5&nbsp;· Click <strong style="color:var(--text);">Deploy</strong> — copy the new URL and paste it below
-          </div>
-
-          <details style="margin-bottom:14px;">
-            <summary style="font-size:12px; color:var(--gold); cursor:pointer; padding:8px 0;"><i class="ti ti-code"></i> &nbsp;New Google Apps Script? Paste this code into script.google.com</summary>
-            <div style="background:rgba(0,0,0,0.4); border-radius:var(--radius-md); padding:12px; margin-top:8px; font-size:11px; color:var(--teal); font-family:monospace; white-space:pre-wrap; overflow-x:auto; line-height:1.6;">var FILE = "Aetherion_CRM_Data.json";
-function _f(){var fs=DriveApp.getFilesByName(FILE);return fs.hasNext()?fs.next():DriveApp.createFile(FILE,"{}",MimeType.PLAIN_TEXT);}
-function doGet(e){return ContentService.createTextOutput(_f().getBlob().getDataAsString()||"{}").setMimeType(ContentService.MimeType.JSON);}
-function doPost(e){
-  try{
-    var inc=JSON.parse(e.postData.contents),f=_f();
-    var cur=JSON.parse(f.getBlob().getDataAsString()||"{}");
-    var rTs=parseInt(cur.cabo_last_updated||"0"),iTs=parseInt(inc.cabo_last_updated||"0");
-    if(iTs>=rTs){f.setContent(JSON.stringify(inc));return ContentService.createTextOutput(JSON.stringify(inc)).setMimeType(ContentService.MimeType.JSON);}
-    return ContentService.createTextOutput(JSON.stringify(cur)).setMimeType(ContentService.MimeType.JSON);
-  }catch(err){return ContentService.createTextOutput(JSON.stringify({error:err.toString()})).setMimeType(ContentService.MimeType.JSON);}
-}</div>
-            <p style="font-size:11px; color:var(--text-muted); margin-top:8px;">Deploy as: <strong style="color:var(--text);">Execute as Me</strong> · Who has access: <strong style="color:#5BC78E;">Anyone</strong></p>
-          </details>
-
+          <h2 class="serif" style="font-size:14px; color:var(--gold);">Google Account Sync</h2>
+          <p style="font-size:12px; color:var(--text-muted); margin:8px 0 12px;">Paste your Google Apps Script URL below. All devices with this URL will share the same data automatically.</p>
           <div class="inline-add-row">
             <input id="sync-url-input" type="text" class="form-input" placeholder="https://script.google.com/macros/s/..." value="${localStorage.getItem("cabo_sync_url") || APPS_SCRIPT_DEFAULT_URL}" />
-            <button onclick="saveSyncUrl()" class="btn btn-primary"><i class="ti ti-check"></i> Save &amp; Sync</button>
+            <button onclick="saveSyncUrl()" class="btn btn-primary"><i class="ti ti-check"></i> Save</button>
           </div>
-          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-            <button onclick="CloudSync.pushNow(); window.CaboComponents.showToast('All data pushed to cloud.', 'success');" class="btn btn-secondary" style="font-size:11px;"><i class="ti ti-upload"></i> Push My Data Now</button>
-            <button onclick="CloudSync.reload(); window.CaboComponents.showToast('Pulling latest data from cloud…', 'info');" class="btn btn-secondary" style="font-size:11px;"><i class="ti ti-download"></i> Pull from Cloud</button>
-          </div>
-          <p style="font-size:10px; color:var(--text-muted); margin-top:10px;"><i class="ti ti-info-circle" style="color:var(--teal);"></i> The sync chip in the header shows <strong style="color:#5BC78E;">Synced</strong> when connected, <strong style="color:var(--text-muted);">Local Only</strong> when the script cannot be reached.</p>
         </div>
 
         <div class="settings-section">
