@@ -2785,26 +2785,26 @@
     //  Configure the script URL once in Settings > Data Management.
     // ----------------------------------------------------------------
     var CloudSync = (function() {
-      var KEYS = ["cabo_users","cabo_guests","cabo_bookings",
-                  "cabo_tasks","cabo_operators","cabo_resorts","cabo_settings"];
+      // All keys pushed/pulled to the sync server
+      var KEYS = ["cabo_users","cabo_guests","cabo_bookings","cabo_tasks",
+                  "cabo_operators","cabo_resorts","cabo_settings",
+                  "cabo_activity_log","cabo_tombstones"];
+      // Keys whose values are arrays of objects with an .id field -- merged rather than replaced
+      var MERGE_KEYS = ["cabo_guests","cabo_bookings","cabo_tasks","cabo_users","cabo_operators"];
+
       var _pollTimer = null;
       var _debounceTimer = null;
       var _writing = false;
       var _origSet = null;
+      var _origGet = null;
 
-      function _getUrl() {
-        return (localStorage.getItem("cabo_sync_url") || "").trim();
-      }
-
-      function _isFirebase(url) {
-        return url && url.indexOf("firebaseio.com") !== -1;
-      }
-
-      function _fbUrl(url) {
-        url = url.replace(/\/$/, "");
-        if (url.match(/\.firebaseio\.com$/)) url += "/crm";
-        if (!url.endsWith(".json")) url += ".json";
-        return url;
+      function _getUrl() { return (localStorage.getItem("cabo_sync_url") || "").trim(); }
+      function _isFirebase(u) { return u && u.indexOf("firebaseio.com") !== -1; }
+      function _fbUrl(u) {
+        u = u.replace(/\/$/, "");
+        if (u.match(/\.firebaseio\.com$/)) u += "/crm";
+        if (!u.endsWith(".json")) u += ".json";
+        return u;
       }
 
       function _setChip(ok, label) {
@@ -2831,8 +2831,80 @@
         } catch(e) {}
       }
 
-      function _localTs() {
-        return parseInt(localStorage.getItem("cabo_last_updated") || "0");
+      function _localTs() { return parseInt(_origGet("cabo_last_updated") || "0"); }
+
+      function _getTombs() {
+        try { return JSON.parse(_origGet("cabo_tombstones") || "{}"); } catch(e) { return {}; }
+      }
+
+      // When an array key is saved with fewer records, record the removed IDs as tombstones
+      // so deleted records do not reappear from other devices during merge
+      function _trackDeletions(key, newValue) {
+        try {
+          var oldRaw = _origGet(key);
+          if (!oldRaw) return;
+          var oldArr = JSON.parse(oldRaw);
+          var newArr = JSON.parse(newValue || "[]");
+          var newIds = {};
+          newArr.forEach(function(item) { if (item.id) newIds[item.id] = true; });
+          var removed = oldArr.filter(function(item) { return item.id && !newIds[item.id]; });
+          if (!removed.length) return;
+          var typeMap = { cabo_guests:"guests", cabo_bookings:"bookings",
+                          cabo_tasks:"tasks", cabo_users:"users", cabo_operators:"operators" };
+          var type = typeMap[key];
+          if (!type) return;
+          var tombs = _getTombs();
+          if (!tombs[type]) tombs[type] = [];
+          removed.forEach(function(item) {
+            if (tombs[type].indexOf(item.id) === -1) tombs[type].push(item.id);
+          });
+          _writing = true;
+          _origSet("cabo_tombstones", JSON.stringify(tombs));
+          _writing = false;
+        } catch(e) {}
+      }
+
+      // Merge two ID-keyed arrays: keep all local records + add remote records with new IDs.
+      // IDs in tombSet are excluded from both sides (they were intentionally deleted).
+      function _mergeArr(localArr, remoteArr, tombSet) {
+        var merged = localArr.filter(function(item) { return item.id && !tombSet[item.id]; });
+        var seen = {};
+        merged.forEach(function(item) { seen[item.id] = true; });
+        remoteArr.forEach(function(item) {
+          if (!item.id || tombSet[item.id] || seen[item.id]) return;
+          merged.push(item);
+          seen[item.id] = true;
+        });
+        return merged;
+      }
+
+      // Merge two activity log arrays: union by entry id, newest first, capped at 1000
+      function _mergeLog(localStr, remoteStr) {
+        var local = [], remote = [];
+        try { local = JSON.parse(localStr || "[]"); } catch(e) {}
+        try { remote = JSON.parse(remoteStr || "[]"); } catch(e) {}
+        var map = {};
+        local.forEach(function(e) { if (e.id) map[e.id] = e; });
+        remote.forEach(function(e) { if (e.id && !map[e.id]) map[e.id] = e; });
+        var merged = Object.keys(map).map(function(k) { return map[k]; });
+        merged.sort(function(a, b) { return new Date(b.timestamp || 0) - new Date(a.timestamp || 0); });
+        if (merged.length > 1000) merged = merged.slice(0, 1000);
+        return JSON.stringify(merged);
+      }
+
+      // Merge tombstones: union of deleted IDs from all devices
+      function _mergeTombs(localStr, remoteStr) {
+        var local = {}, remote = {};
+        try { local = JSON.parse(localStr || "{}"); } catch(e) {}
+        try { remote = JSON.parse(remoteStr || "{}"); } catch(e) {}
+        var result = {};
+        ["guests","bookings","tasks","users","operators"].forEach(function(type) {
+          var combined = {};
+          (local[type] || []).forEach(function(id) { combined[id] = true; });
+          (remote[type] || []).forEach(function(id) { combined[id] = true; });
+          result[type] = Object.keys(combined);
+        });
+        return JSON.stringify(result);
       }
 
       function _push() {
@@ -2840,33 +2912,17 @@
         if (!url) { _setChip(false, "No Sync URL"); return; }
         var ts = Date.now().toString();
         var payload = { cabo_last_updated: ts };
-        KEYS.forEach(function(k) {
-          var v = localStorage.getItem(k);
-          if (v != null) payload[k] = v;
-        });
+        KEYS.forEach(function(k) { var v = _origGet(k); if (v != null) payload[k] = v; });
         _origSet("cabo_last_updated", ts);
-        _setChip(false, "Syncing…");
-
+        _setChip(false, "Syncing...");
         if (_isFirebase(url)) {
           var fbPayload = Object.assign({ _ts: parseInt(ts) }, payload);
-          fetch(_fbUrl(url), {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(fbPayload)
-          })
-          .then(function(r) { _setChip(r.ok); })
-          .catch(function() { _setChip(false); });
+          fetch(_fbUrl(url), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(fbPayload) })
+            .then(function(r) { _setChip(r.ok); }).catch(function() { _setChip(false); });
         } else {
-          // Google Apps Script requires no-cors mode to avoid CORS rejection.
-          // The response is opaque so we can't read it — we optimistically mark synced
-          // and let the next poll cycle verify by reading back the data.
-          fetch(url, {
-            method: "POST",
-            mode: "no-cors",
-            body: JSON.stringify(payload)
-          })
-          .then(function() { _setChip(true); })
-          .catch(function() { _setChip(false); });
+          // no-cors required for Google Apps Script -- response is opaque but data IS saved
+          fetch(url, { method:"POST", mode:"no-cors", body:JSON.stringify(payload) })
+            .then(function() { _setChip(true); }).catch(function() { _setChip(false); });
         }
       }
 
@@ -2878,47 +2934,98 @@
         fetch(fetchUrl)
           .then(function(r) { return r.ok ? r.json() : null; })
           .then(function(remote) {
-            if (!remote) { _push(); return; }
+            if (!remote || !remote.cabo_last_updated) { _push(); return; }
 
-            var localTs = _localTs();
-            var remoteTs = parseInt(remote.cabo_last_updated || remote._ts || "0");
+            // Step 1 -- merge tombstones so we know what was deleted on any device
+            var mergedTombsStr = _mergeTombs(_origGet("cabo_tombstones"), remote.cabo_tombstones);
+            var mergedTombs = {};
+            try { mergedTombs = JSON.parse(mergedTombsStr); } catch(e) {}
+            var changed = false;
 
-            if (remoteTs > localTs) {
-              var changed = false;
-              KEYS.forEach(function(k) {
-                if (remote[k] != null && remote[k] !== localStorage.getItem(k)) {
-                  _writing = true;
-                  _origSet(k, remote[k]);
-                  _writing = false;
-                  changed = true;
+            // Step 2 -- merge each ID-based array (guests, bookings, tasks, users, operators)
+            MERGE_KEYS.forEach(function(k) {
+              if (!remote[k]) return;
+              var localArr = [], remoteArr = [];
+              try { localArr = JSON.parse(_origGet(k) || "[]"); } catch(e) {}
+              try { remoteArr = JSON.parse(remote[k]); } catch(e) {}
+              var type = k.replace("cabo_", "");
+              var tombSet = {};
+              (mergedTombs[type] || []).forEach(function(id) { tombSet[id] = true; });
+              var mergedArr = _mergeArr(localArr, remoteArr, tombSet);
+              var mergedStr = JSON.stringify(mergedArr);
+              if (mergedStr !== _origGet(k)) {
+                _writing = true; _origSet(k, mergedStr); _writing = false; changed = true;
+              }
+            });
+
+            // Step 3 -- merge resorts (string/object union)
+            if (remote.cabo_resorts) {
+              try {
+                var localR = JSON.parse(_origGet("cabo_resorts") || "[]");
+                var remoteR = JSON.parse(remote.cabo_resorts);
+                var rSet = {};
+                localR.forEach(function(r) { rSet[JSON.stringify(r)] = r; });
+                remoteR.forEach(function(r) { var rk = JSON.stringify(r); if (!rSet[rk]) { rSet[rk] = r; } });
+                var mergedRStr = JSON.stringify(Object.keys(rSet).map(function(rk) { return rSet[rk]; }));
+                if (mergedRStr !== _origGet("cabo_resorts")) {
+                  _writing = true; _origSet("cabo_resorts", mergedRStr); _writing = false; changed = true;
                 }
-              });
-              _writing = true;
-              _origSet("cabo_last_updated", remoteTs.toString());
-              _writing = false;
-              _setChip(true);
-              if (changed) _refresh();
-            } else if (localTs > remoteTs || remoteTs === 0) {
-              _push();
-            } else {
-              _setChip(true);
+              } catch(e) {}
             }
+
+            // Step 4 -- merge activity log (union by entry id)
+            var mergedLogStr = _mergeLog(_origGet("cabo_activity_log"), remote.cabo_activity_log);
+            if (mergedLogStr !== _origGet("cabo_activity_log")) {
+              _writing = true; _origSet("cabo_activity_log", mergedLogStr); _writing = false; changed = true;
+            }
+
+            // Step 5 -- save merged tombstones
+            if (mergedTombsStr !== _origGet("cabo_tombstones")) {
+              _writing = true; _origSet("cabo_tombstones", mergedTombsStr); _writing = false; changed = true;
+            }
+
+            // Step 6 -- settings: local config wins; only merge the teamMembers list
+            if (remote.cabo_settings) {
+              try {
+                var localS = JSON.parse(_origGet("cabo_settings") || "{}");
+                var remoteS = JSON.parse(remote.cabo_settings);
+                var localTeam = localS.teamMembers || [];
+                var teamSet = {};
+                localTeam.forEach(function(m) { teamSet[m] = true; });
+                var teamAdded = false;
+                (remoteS.teamMembers || []).forEach(function(m) {
+                  if (!teamSet[m]) { localTeam.push(m); teamSet[m] = true; teamAdded = true; }
+                });
+                if (teamAdded) {
+                  localS.teamMembers = localTeam;
+                  _writing = true; _origSet("cabo_settings", JSON.stringify(localS)); _writing = false; changed = true;
+                }
+              } catch(e) {}
+            }
+
+            // Step 7 -- advance local timestamp to max seen
+            var remoteTs = parseInt(remote.cabo_last_updated || remote._ts || "0");
+            _writing = true; _origSet("cabo_last_updated", Math.max(_localTs(), remoteTs).toString()); _writing = false;
+
+            _setChip(true);
+            // Push the fully merged dataset back so the server holds the union of all devices
+            if (changed) { _push(); _refresh(); }
           })
           .catch(function() { _setChip(false); });
       }
 
       function _startPolling() {
         clearInterval(_pollTimer);
-        _pollTimer = setInterval(function() {
-          if (_getUrl()) _pull();
-        }, 15000);
+        _pollTimer = setInterval(function() { if (_getUrl()) _pull(); }, 15000);
       }
 
       return {
         active: false,
         init: function() {
           _origSet = localStorage.setItem.bind(localStorage);
+          _origGet = localStorage.getItem.bind(localStorage);
           localStorage.setItem = function(k, v) {
+            if (!_writing && MERGE_KEYS.indexOf(k) !== -1) _trackDeletions(k, v);
             _origSet(k, v);
             if (!_writing && KEYS.indexOf(k) !== -1) {
               clearTimeout(_debounceTimer);
@@ -2937,6 +3044,7 @@
         pushNow: function() { _push(); }
       };
     })();
+
 
     function initializeDB() {
       // Always merge DEFAULT_USERS so any browser always has the base team accounts.
@@ -3614,7 +3722,8 @@ See you in Cabo! ☀️`;
     // Keys that carry CRM data — a change to any of these should refresh all open tabs
     const CRM_DATA_KEYS = [
       "cabo_users", "cabo_guests", "cabo_bookings",
-      "cabo_tasks", "cabo_operators", "cabo_resorts", "cabo_settings"
+      "cabo_tasks", "cabo_operators", "cabo_resorts", "cabo_settings",
+      "cabo_activity_log", "cabo_tombstones"
     ];
 
     // Re-render the current view without disrupting open modals/drawers
