@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -2097,6 +2097,9 @@
             <span id="metric-alerts-val">0 Alerts</span>
           </div>
         </div>
+        <div class="sync-chip" id="sync-status-chip">
+          <i class="ti ti-cloud-off" style="font-size:12px;"></i> Local Only
+        </div>
       </header>
 
       <!-- View Wrapper -->
@@ -2785,11 +2788,11 @@
     // ----------------------------------------------------------------
     var CloudSync = (function() {
       // All keys pushed/pulled to the sync server
-      var KEYS = ["cabo_users","cabo_guests","cabo_bookings","cabo_tasks",
-                  "cabo_operators","cabo_resorts","cabo_settings",
-                  "cabo_activity_log","cabo_tombstones"];
+      var KEYS = ["aetherion_users","aetherion_guests","aetherion_bookings","aetherion_tasks",
+                  "aetherion_operators","aetherion_resorts","aetherion_settings",
+                  "aetherion_activitylog","aetherion_tombstones"];
       // Keys whose values are arrays of objects with an .id field -- merged rather than replaced
-      var MERGE_KEYS = ["cabo_guests","cabo_bookings","cabo_tasks","cabo_users","cabo_operators"];
+      var MERGE_KEYS = ["aetherion_guests","aetherion_bookings","aetherion_tasks","aetherion_users","aetherion_operators"];
 
       var _pollTimer = null;
       var _debounceTimer = null;
@@ -2797,7 +2800,7 @@
       var _origSet = null;
       var _origGet = null;
 
-      function _getUrl() { return (localStorage.getItem("cabo_sync_url") || "").trim(); }
+      function _getUrl() { return (localStorage.getItem("aetherion_sync_url") || "").trim(); }
       function _isFirebase(u) { return u && u.indexOf("firebaseio.com") !== -1; }
       function _fbUrl(u) {
         u = u.replace(/\/$/, "");
@@ -2830,10 +2833,10 @@
         } catch(e) {}
       }
 
-      function _localTs() { return parseInt(_origGet("cabo_last_updated") || "0"); }
+      function _localTs() { return parseInt(_origGet("aetherion_last_updated") || "0"); }
 
       function _getTombs() {
-        try { return JSON.parse(_origGet("cabo_tombstones") || "{}"); } catch(e) { return {}; }
+        try { return JSON.parse(_origGet("aetherion_tombstones") || "{}"); } catch(e) { return {}; }
       }
 
       // When an array key is saved with fewer records, record the removed IDs as tombstones
@@ -2848,8 +2851,8 @@
           newArr.forEach(function(item) { if (item.id) newIds[item.id] = true; });
           var removed = oldArr.filter(function(item) { return item.id && !newIds[item.id]; });
           if (!removed.length) return;
-          var typeMap = { cabo_guests:"guests", cabo_bookings:"bookings",
-                          cabo_tasks:"tasks", cabo_users:"users", cabo_operators:"operators" };
+          var typeMap = { aetherion_guests:"guests", aetherion_bookings:"bookings",
+                          aetherion_tasks:"tasks", aetherion_users:"users", aetherion_operators:"operators" };
           var type = typeMap[key];
           if (!type) return;
           var tombs = _getTombs();
@@ -2858,7 +2861,7 @@
             if (tombs[type].indexOf(item.id) === -1) tombs[type].push(item.id);
           });
           _writing = true;
-          _origSet("cabo_tombstones", JSON.stringify(tombs));
+          _origSet("aetherion_tombstones", JSON.stringify(tombs));
           _writing = false;
         } catch(e) {}
       }
@@ -2910,9 +2913,9 @@
         var url = _getUrl();
         if (!url) { return; }
         var ts = Date.now().toString();
-        var payload = { cabo_last_updated: ts };
+        var payload = { aetherion_last_updated: ts };
         KEYS.forEach(function(k) { var v = _origGet(k); if (v != null) payload[k] = v; });
-        _origSet("cabo_last_updated", ts);
+        _origSet("aetherion_last_updated", ts);
         if (_isFirebase(url)) {
           var fbPayload = Object.assign({ _ts: parseInt(ts) }, payload);
           fetch(_fbUrl(url), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(fbPayload) })
@@ -2928,7 +2931,7 @@
       // JSONP read: creates a <script> tag which bypasses CORS entirely.
       // Apps Script wraps the JSON in the callback name and the browser executes it.
       function _jsonpGet(url, cb) {
-        var name = "_cabo_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
+        var name = "_aetherion_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
         var script = document.createElement("script");
         var done = false;
         var tid = setTimeout(function() {
@@ -2962,9 +2965,9 @@
         if (!url) { return; }
 
         var doMerge = function(remote) {
-          if (!remote || !remote.cabo_last_updated) { _push(); return; }
+          if (!remote || !remote.aetherion_last_updated) { _push(); return; }
 
-          var mergedTombsStr = _mergeTombs(_origGet("cabo_tombstones"), remote.cabo_tombstones);
+          var mergedTombsStr = _mergeTombs(_origGet("aetherion_tombstones"), remote.aetherion_tombstones);
           var mergedTombs = {};
           try { mergedTombs = JSON.parse(mergedTombsStr); } catch(e) {}
           var changed = false;
@@ -2974,7 +2977,7 @@
             var localArr = [], remoteArr = [];
             try { localArr = JSON.parse(_origGet(k) || "[]"); } catch(e) {}
             try { remoteArr = JSON.parse(remote[k]); } catch(e) {}
-            var type = k.replace("cabo_", "");
+            var type = k.replace("aetherion_", "");
             var tombSet = {};
             (mergedTombs[type] || []).forEach(function(id) { tombSet[id] = true; });
             var mergedArr = _mergeArr(localArr, remoteArr, tombSet);
@@ -2984,33 +2987,33 @@
             }
           });
 
-          if (remote.cabo_resorts) {
+          if (remote.aetherion_resorts) {
             try {
-              var localR = JSON.parse(_origGet("cabo_resorts") || "[]");
-              var remoteR = JSON.parse(remote.cabo_resorts);
+              var localR = JSON.parse(_origGet("aetherion_resorts") || "[]");
+              var remoteR = JSON.parse(remote.aetherion_resorts);
               var rSet = {};
               localR.forEach(function(r) { rSet[JSON.stringify(r)] = r; });
               remoteR.forEach(function(r) { var rk = JSON.stringify(r); if (!rSet[rk]) { rSet[rk] = r; } });
               var mergedRStr = JSON.stringify(Object.keys(rSet).map(function(rk) { return rSet[rk]; }));
-              if (mergedRStr !== _origGet("cabo_resorts")) {
-                _writing = true; _origSet("cabo_resorts", mergedRStr); _writing = false; changed = true;
+              if (mergedRStr !== _origGet("aetherion_resorts")) {
+                _writing = true; _origSet("aetherion_resorts", mergedRStr); _writing = false; changed = true;
               }
             } catch(e) {}
           }
 
-          var mergedLogStr = _mergeLog(_origGet("cabo_activity_log"), remote.cabo_activity_log);
-          if (mergedLogStr !== _origGet("cabo_activity_log")) {
-            _writing = true; _origSet("cabo_activity_log", mergedLogStr); _writing = false; changed = true;
+          var mergedLogStr = _mergeLog(_origGet("aetherion_activitylog"), remote.aetherion_activitylog);
+          if (mergedLogStr !== _origGet("aetherion_activitylog")) {
+            _writing = true; _origSet("aetherion_activitylog", mergedLogStr); _writing = false; changed = true;
           }
 
-          if (mergedTombsStr !== _origGet("cabo_tombstones")) {
-            _writing = true; _origSet("cabo_tombstones", mergedTombsStr); _writing = false; changed = true;
+          if (mergedTombsStr !== _origGet("aetherion_tombstones")) {
+            _writing = true; _origSet("aetherion_tombstones", mergedTombsStr); _writing = false; changed = true;
           }
 
-          if (remote.cabo_settings) {
+          if (remote.aetherion_settings) {
             try {
-              var localS = JSON.parse(_origGet("cabo_settings") || "{}");
-              var remoteS = JSON.parse(remote.cabo_settings);
+              var localS = JSON.parse(_origGet("aetherion_settings") || "{}");
+              var remoteS = JSON.parse(remote.aetherion_settings);
               var localTeam = localS.teamMembers || [];
               var teamSet = {};
               localTeam.forEach(function(m) { teamSet[m] = true; });
@@ -3020,13 +3023,13 @@
               });
               if (teamAdded) {
                 localS.teamMembers = localTeam;
-                _writing = true; _origSet("cabo_settings", JSON.stringify(localS)); _writing = false; changed = true;
+                _writing = true; _origSet("aetherion_settings", JSON.stringify(localS)); _writing = false; changed = true;
               }
             } catch(e) {}
           }
 
-          var remoteTs = parseInt(remote.cabo_last_updated || remote._ts || "0");
-          _writing = true; _origSet("cabo_last_updated", Math.max(_localTs(), remoteTs).toString()); _writing = false;
+          var remoteTs = parseInt(remote.aetherion_last_updated || remote._ts || "0");
+          _writing = true; _origSet("aetherion_last_updated", Math.max(_localTs(), remoteTs).toString()); _writing = false;
           if (changed) { _push(); _refresh(); }
         };
 
@@ -3076,8 +3079,8 @@
       // Always merge DEFAULT_USERS so any browser always has the base team accounts.
       // If a default user already exists but the default has a higher credV, update
       // their identity/credentials while preserving any custom permissions set via UI.
-      let storedUsers = JSON.parse(localStorage.getItem("cabo_users") || "[]");
-      const deletedDefaults = JSON.parse(localStorage.getItem("cabo_deleted_defaults") || "[]");
+      let storedUsers = JSON.parse(localStorage.getItem("aetherion_users") || "[]");
+      const deletedDefaults = JSON.parse(localStorage.getItem("aetherion_deleted_defaults") || "[]");
       DEFAULT_USERS.forEach(function(du) {
         if (deletedDefaults.indexOf(du.id) !== -1) return; // user was explicitly deleted, never re-add
         const idx = storedUsers.findIndex(function(u) { return u.id === du.id; });
@@ -3102,8 +3105,8 @@
         if (!seenUsernames[u.username]) { seenUsernames[u.username] = true; return true; }
         return false;
       });
-      localStorage.setItem("cabo_users", JSON.stringify(storedUsers));
-      if (localStorage.getItem("cabo_crm_initialized")) return;
+      localStorage.setItem("aetherion_users", JSON.stringify(storedUsers));
+      if (localStorage.getItem("aetherion_initialized")) return;
       const sampleGuests = [
         { id: "G-1001", name: "Marcus Sterling", email: "msterling@outlook.com", phone: "+1 (512) 555-8839", hotel: "Pueblo Bonito Sunset Beach", room: "Suite 4124", checkIn: "2026-05-20", checkOut: "2026-05-27", guestsCount: 4, status: "Active", notes: "Celebrating 10th anniversary. Prefers top-shelf tequila, ocean views, and requested late checkout." },
         { id: "G-1002", name: "Sarah Henderson", email: "sarah.h@gmail.com", phone: "+1 (415) 321-4990", hotel: "Villa del Palmar Beach Resort & Spa", room: "Villas 210B", checkIn: "2026-05-22", checkOut: "2026-05-29", guestsCount: 2, status: "Active", notes: "Extremely active, interested in snorkeling and heavy off-road ATV rides. Vegetarian meal requests." },
@@ -3129,36 +3132,36 @@
         { id: "T-3004", guestId: "G-1003", guestName: "Robert Vance", title: "El Farallon Reservation Setup", category: "Food Delivery", date: "2026-05-25", time: "19:30", description: "Book cliffside table for 5 guests. Cliffside ocean view required. Card details given to restaurant.", status: "Todo", assignedTo: "Ana (Concierge)" },
         { id: "T-3005", guestId: "G-1004", guestName: "Diana Ross", title: "Private Chef & Yacht Stocking", category: "Chef", date: "2026-05-21", time: "12:00", description: "Stock charter yacht with specific organic snacks, champagne, and allocate Chef Hector for villa dinner.", status: "Completed", assignedTo: "Ana (Concierge)" }
       ];
-      localStorage.setItem("cabo_resorts", JSON.stringify(DEFAULT_RESORTS));
-      localStorage.setItem("cabo_operators", JSON.stringify(DEFAULT_OPERATORS));
-      localStorage.setItem("cabo_guests", JSON.stringify(sampleGuests));
-      localStorage.setItem("cabo_bookings", JSON.stringify(sampleBookings));
-      localStorage.setItem("cabo_tasks", JSON.stringify(sampleTasks));
-      localStorage.setItem("cabo_crm_initialized", "true");
+      localStorage.setItem("aetherion_resorts", JSON.stringify(DEFAULT_RESORTS));
+      localStorage.setItem("aetherion_operators", JSON.stringify(DEFAULT_OPERATORS));
+      localStorage.setItem("aetherion_guests", JSON.stringify(sampleGuests));
+      localStorage.setItem("aetherion_bookings", JSON.stringify(sampleBookings));
+      localStorage.setItem("aetherion_tasks", JSON.stringify(sampleTasks));
+      localStorage.setItem("aetherion_initialized", "true");
     }
 
     const db = {
       init: initializeDB,
       reset: () => {
-        localStorage.removeItem("cabo_crm_initialized");
-        localStorage.removeItem("cabo_resorts");
-        localStorage.removeItem("cabo_operators");
-        localStorage.removeItem("cabo_guests");
-        localStorage.removeItem("cabo_bookings");
-        localStorage.removeItem("cabo_tasks");
+        localStorage.removeItem("aetherion_initialized");
+        localStorage.removeItem("aetherion_resorts");
+        localStorage.removeItem("aetherion_operators");
+        localStorage.removeItem("aetherion_guests");
+        localStorage.removeItem("aetherion_bookings");
+        localStorage.removeItem("aetherion_tasks");
         initializeDB();
       },
-      getResorts: () => JSON.parse(localStorage.getItem("cabo_resorts") || "[]"),
+      getResorts: () => JSON.parse(localStorage.getItem("aetherion_resorts") || "[]"),
       getCatalog: () => CATALOG_ITEMS,
       getCatalogItem: (id) => CATALOG_ITEMS.find(item => item.id === id),
-      getOperators: () => JSON.parse(localStorage.getItem("cabo_operators") || "[]"),
+      getOperators: () => JSON.parse(localStorage.getItem("aetherion_operators") || "[]"),
       getOperator: (id) => {
-        const operators = JSON.parse(localStorage.getItem("cabo_operators") || "[]");
+        const operators = JSON.parse(localStorage.getItem("aetherion_operators") || "[]");
         return operators.find(op => op.id === id);
       },
-      getGuests: () => JSON.parse(localStorage.getItem("cabo_guests") || "[]"),
+      getGuests: () => JSON.parse(localStorage.getItem("aetherion_guests") || "[]"),
       getGuest: (id) => {
-        const guests = JSON.parse(localStorage.getItem("cabo_guests") || "[]");
+        const guests = JSON.parse(localStorage.getItem("aetherion_guests") || "[]");
         return guests.find(g => g.id === id);
       },
       saveGuest: (guest) => {
@@ -3175,23 +3178,23 @@
           if (idx !== -1) guests[idx] = guest;
           else guests.push(guest);
         }
-        localStorage.setItem("cabo_guests", JSON.stringify(guests));
+        localStorage.setItem("aetherion_guests", JSON.stringify(guests));
         return guest;
       },
       deleteGuest: (id) => {
         let guests = db.getGuests();
         guests = guests.filter(g => g.id !== id);
-        localStorage.setItem("cabo_guests", JSON.stringify(guests));
+        localStorage.setItem("aetherion_guests", JSON.stringify(guests));
         let bookings = db.getBookings();
         bookings = bookings.filter(b => b.guestId !== id);
-        localStorage.setItem("cabo_bookings", JSON.stringify(bookings));
+        localStorage.setItem("aetherion_bookings", JSON.stringify(bookings));
         let tasks = db.getTasks();
         tasks = tasks.filter(t => t.guestId !== id);
-        localStorage.setItem("cabo_tasks", JSON.stringify(tasks));
+        localStorage.setItem("aetherion_tasks", JSON.stringify(tasks));
       },
-      getBookings: () => JSON.parse(localStorage.getItem("cabo_bookings") || "[]"),
+      getBookings: () => JSON.parse(localStorage.getItem("aetherion_bookings") || "[]"),
       getBooking: (id) => {
-        const bookings = JSON.parse(localStorage.getItem("cabo_bookings") || "[]");
+        const bookings = JSON.parse(localStorage.getItem("aetherion_bookings") || "[]");
         return bookings.find(b => b.id === id);
       },
       getGuestBookings: (guestId) => {
@@ -3217,17 +3220,17 @@
           if (idx !== -1) bookings[idx] = booking;
           else bookings.push(booking);
         }
-        localStorage.setItem("cabo_bookings", JSON.stringify(bookings));
+        localStorage.setItem("aetherion_bookings", JSON.stringify(bookings));
         return booking;
       },
       deleteBooking: (id) => {
         let bookings = db.getBookings();
         bookings = bookings.filter(b => b.id !== id);
-        localStorage.setItem("cabo_bookings", JSON.stringify(bookings));
+        localStorage.setItem("aetherion_bookings", JSON.stringify(bookings));
       },
-      getTasks: () => JSON.parse(localStorage.getItem("cabo_tasks") || "[]"),
+      getTasks: () => JSON.parse(localStorage.getItem("aetherion_tasks") || "[]"),
       getTask: (id) => {
-        const tasks = JSON.parse(localStorage.getItem("cabo_tasks") || "[]");
+        const tasks = JSON.parse(localStorage.getItem("aetherion_tasks") || "[]");
         return tasks.find(t => t.id === id);
       },
       getGuestTasks: (guestId) => {
@@ -3248,13 +3251,13 @@
           if (idx !== -1) tasks[idx] = task;
           else tasks.push(task);
         }
-        localStorage.setItem("cabo_tasks", JSON.stringify(tasks));
+        localStorage.setItem("aetherion_tasks", JSON.stringify(tasks));
         return task;
       },
       deleteTask: (id) => {
         let tasks = db.getTasks();
         tasks = tasks.filter(t => t.id !== id);
-        localStorage.setItem("cabo_tasks", JSON.stringify(tasks));
+        localStorage.setItem("aetherion_tasks", JSON.stringify(tasks));
       },
       getDashboardStats: () => {
         const bookings = db.getBookings();
@@ -3285,17 +3288,17 @@
       },
 
       // User management
-      getUsers: () => JSON.parse(localStorage.getItem("cabo_users") || "[]"),
+      getUsers: () => JSON.parse(localStorage.getItem("aetherion_users") || "[]"),
       getUser: (id) => {
-        const users = JSON.parse(localStorage.getItem("cabo_users") || "[]");
+        const users = JSON.parse(localStorage.getItem("aetherion_users") || "[]");
         return users.find(u => u.id === id);
       },
       getUserByUsername: (username) => {
-        const users = JSON.parse(localStorage.getItem("cabo_users") || "[]");
+        const users = JSON.parse(localStorage.getItem("aetherion_users") || "[]");
         return users.find(u => u.username.toLowerCase() === username.toLowerCase());
       },
       saveUser: (user) => {
-        const users = JSON.parse(localStorage.getItem("cabo_users") || "[]");
+        const users = JSON.parse(localStorage.getItem("aetherion_users") || "[]");
         if (!user.id) {
           const maxIdNum = users.reduce((max, u) => {
             const num = parseInt(u.id.replace("U-", "")) || 0;
@@ -3309,26 +3312,26 @@
           if (idx !== -1) users[idx] = user;
           else users.push(user);
         }
-        localStorage.setItem("cabo_users", JSON.stringify(users));
+        localStorage.setItem("aetherion_users", JSON.stringify(users));
         return user;
       },
       deleteUser: (id) => {
-        let users = JSON.parse(localStorage.getItem("cabo_users") || "[]");
+        let users = JSON.parse(localStorage.getItem("aetherion_users") || "[]");
         users = users.filter(u => u.id !== id);
-        localStorage.setItem("cabo_users", JSON.stringify(users));
+        localStorage.setItem("aetherion_users", JSON.stringify(users));
         const isDefault = DEFAULT_USERS.some(u => u.id === id);
         if (isDefault) {
-          const deleted = JSON.parse(localStorage.getItem("cabo_deleted_defaults") || "[]");
+          const deleted = JSON.parse(localStorage.getItem("aetherion_deleted_defaults") || "[]");
           if (deleted.indexOf(id) === -1) deleted.push(id);
-          localStorage.setItem("cabo_deleted_defaults", JSON.stringify(deleted));
+          localStorage.setItem("aetherion_deleted_defaults", JSON.stringify(deleted));
         }
       },
 
       // Activity Log
       logActivity: (guestId, type, description, meta = {}) => {
-        const logs = JSON.parse(localStorage.getItem("cabo_activity_log") || "[]");
+        const logs = JSON.parse(localStorage.getItem("aetherion_activitylog") || "[]");
         const guestName = (() => { try { return db.getGuest(guestId)?.name || ""; } catch(e) { return ""; } })();
-        const session = (() => { try { return JSON.parse(sessionStorage.getItem("cabo_session") || "null"); } catch(e) { return null; } })();
+        const session = (() => { try { return JSON.parse(localStorage.getItem("aetherion_user") || "null"); } catch(e) { return null; } })();
         const log = {
           id: `L-${Date.now()}-${Math.random().toString(36).substr(2,5)}`,
           guestId,
@@ -3342,16 +3345,16 @@
         };
         logs.push(log);
         if (logs.length > 1000) logs.splice(0, logs.length - 1000);
-        localStorage.setItem("cabo_activity_log", JSON.stringify(logs));
+        localStorage.setItem("aetherion_activitylog", JSON.stringify(logs));
         return log;
       },
       getActivityLog: (guestId = null) => {
-        const logs = JSON.parse(localStorage.getItem("cabo_activity_log") || "[]");
+        const logs = JSON.parse(localStorage.getItem("aetherion_activitylog") || "[]");
         const filtered = guestId ? logs.filter(l => l.guestId === guestId) : logs;
         return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       },
       clearActivityLog: () => {
-        localStorage.removeItem("cabo_activity_log");
+        localStorage.removeItem("aetherion_activitylog");
       },
 
       // Settings / Customization
@@ -3366,11 +3369,11 @@
           primaryColor: "#C9A84C",
           accentColor: "#4DB8D4"
         };
-        const saved = JSON.parse(localStorage.getItem("cabo_settings") || "{}");
+        const saved = JSON.parse(localStorage.getItem("aetherion_settings") || "{}");
         return { ...defaults, ...saved };
       },
       saveSettings: (settings) => {
-        localStorage.setItem("cabo_settings", JSON.stringify(settings));
+        localStorage.setItem("aetherion_settings", JSON.stringify(settings));
       }
     };
     db.init();
@@ -3747,9 +3750,9 @@ See you in Cabo! ☀️`;
 
     // Keys that carry CRM data — a change to any of these should refresh all open tabs
     const CRM_DATA_KEYS = [
-      "cabo_users", "cabo_guests", "cabo_bookings",
-      "cabo_tasks", "cabo_operators", "cabo_resorts", "cabo_settings",
-      "cabo_activity_log", "cabo_tombstones"
+      "aetherion_users", "aetherion_guests", "aetherion_bookings",
+      "aetherion_tasks", "aetherion_operators", "aetherion_resorts", "aetherion_settings",
+      "aetherion_activitylog", "aetherion_tombstones"
     ];
 
     // Re-render the current view without disrupting open modals/drawers
@@ -3769,8 +3772,8 @@ See you in Cabo! ☀️`;
     function initializeCRM() {
       // Auto-clear the old broken deployment URL so sync doesn't silently fail
       var BROKEN = "AKfycbw7Ar_jS4g1MEFZjIWBAIcZajIt-uhpqTet8DTX--EUWpHyte2hrxKF3AjxQoBmhsNOyQ";
-      var savedUrl = localStorage.getItem("cabo_sync_url") || "";
-      if (savedUrl.indexOf(BROKEN) !== -1) { localStorage.removeItem("cabo_sync_url"); }
+      var savedUrl = localStorage.getItem("aetherion_sync_url") || "";
+      if (savedUrl.indexOf(BROKEN) !== -1) { localStorage.removeItem("aetherion_sync_url"); }
       CloudSync.init();
 
       // Listen for data changes made in any other open tab and refresh this one
@@ -4708,7 +4711,7 @@ See you in Cabo! ☀️`;
       } else {
         operators.push(op);
       }
-      localStorage.setItem("cabo_operators", JSON.stringify(operators));
+      localStorage.setItem("aetherion_operators", JSON.stringify(operators));
       const opLabels = { name: "Name", phone: "Phone", email: "Email", netRate: "Net Rate", website: "Website" };
       const opChanges = id ? fieldDiff(beforeOp, op, opLabels) : "";
       window.CaboDB.logActivity(null, "system", id ? `Operator updated: ${op.name}` : `Operator added: ${op.name}`, { changes: opChanges || undefined });
@@ -4720,7 +4723,7 @@ See you in Cabo! ☀️`;
       if (!confirm("Delete this operator? This cannot be undone.")) return;
       const op = window.CaboDB.getOperators().find(o => o.id === id);
       const operators = window.CaboDB.getOperators().filter(o => o.id !== id);
-      localStorage.setItem("cabo_operators", JSON.stringify(operators));
+      localStorage.setItem("aetherion_operators", JSON.stringify(operators));
       window.CaboDB.logActivity(null, "system", "Operator deleted: " + (op ? op.name : id), {});
       renderOperatorsView(document.getElementById("app-view"));
       window.CaboComponents.showToast("Operator deleted.", "info");
@@ -5717,7 +5720,7 @@ See you in Cabo! ☀️`;
           <h2 class="serif" style="font-size:14px; color:var(--gold);">Google Account Sync</h2>
           <p style="font-size:12px; color:var(--text-muted); margin:8px 0 12px;">Paste your Google Apps Script URL below. All devices with this URL will share the same data automatically.</p>
           <div class="inline-add-row">
-            <input id="sync-url-input" type="text" class="form-input" placeholder="https://script.google.com/macros/s/..." value="${localStorage.getItem("cabo_sync_url") || ""}" />
+            <input id="sync-url-input" type="text" class="form-input" placeholder="https://script.google.com/macros/s/..." value="${localStorage.getItem("aetherion_sync_url") || ""}" />
             <button onclick="saveSyncUrl()" class="btn btn-primary"><i class="ti ti-check"></i> Save</button>
           </div>
         </div>
@@ -5743,9 +5746,9 @@ See you in Cabo! ☀️`;
         return;
       }
       if (url) {
-        localStorage.setItem("cabo_sync_url", url);
+        localStorage.setItem("aetherion_sync_url", url);
       } else {
-        localStorage.removeItem("cabo_sync_url");
+        localStorage.removeItem("aetherion_sync_url");
       }
       CloudSync.reload();
       window.CaboComponents.showToast(url ? "Sync URL saved — connecting now…" : "Sync URL cleared. Running in local-only mode.", "success");
@@ -5792,7 +5795,7 @@ See you in Cabo! ☀️`;
       if (!val) return;
       const resorts = window.CaboDB.getResorts();
       resorts.push(val);
-      localStorage.setItem("cabo_resorts", JSON.stringify(resorts));
+      localStorage.setItem("aetherion_resorts", JSON.stringify(resorts));
       document.getElementById("new-resort").value = "";
       window.CaboDB.logActivity(null, "system", `Resort added: ${val}`, {});
       renderSettingsView(document.getElementById("app-view"));
@@ -5804,7 +5807,7 @@ See you in Cabo! ☀️`;
       const name = resorts[idx];
       if (!confirm(`Remove "${name}" from the resort list?`)) return;
       resorts.splice(idx, 1);
-      localStorage.setItem("cabo_resorts", JSON.stringify(resorts));
+      localStorage.setItem("aetherion_resorts", JSON.stringify(resorts));
       editingResortIdx = -1;
       window.CaboDB.logActivity(null, "system", `Resort removed: ${name}`, {});
       renderSettingsView(document.getElementById("app-view"));
@@ -5858,7 +5861,7 @@ See you in Cabo! ☀️`;
       const resorts = window.CaboDB.getResorts();
       const oldVal = resorts[idx];
       resorts[idx] = val;
-      localStorage.setItem("cabo_resorts", JSON.stringify(resorts));
+      localStorage.setItem("aetherion_resorts", JSON.stringify(resorts));
       editingResortIdx = -1;
       window.CaboDB.logActivity(null, "system", `Resort updated: "${oldVal}" → "${val}"`, {});
       renderSettingsView(document.getElementById("app-view"));
@@ -5870,11 +5873,11 @@ See you in Cabo! ☀️`;
     // ================================================================
     function getCurrentUser() {
       try {
-        const session = JSON.parse(sessionStorage.getItem("cabo_session") || "null");
+        const session = JSON.parse(localStorage.getItem("aetherion_user") || "null");
         if (!session) return null;
         const user = window.CaboDB.getUser(session.id);
         if (!user || (user.credV || 1) !== (session.credV || 1)) {
-          sessionStorage.removeItem("cabo_session");
+          localStorage.removeItem("aetherion_user");
           return null;
         }
         return session;
@@ -5961,7 +5964,7 @@ See you in Cabo! ☀️`;
       }
       errorEl.classList.remove("visible");
       const session = { id: user.id, name: user.name, role: user.role, username: user.username, credV: user.credV || 1 };
-      sessionStorage.setItem("cabo_session", JSON.stringify(session));
+      localStorage.setItem("aetherion_user", JSON.stringify(session));
       hideLoginScreen();
       initializeCRM();
       window.CaboComponents.showToast("Welcome back, " + user.name + "!", "success");
@@ -5972,7 +5975,7 @@ See you in Cabo! ☀️`;
       if (confirm("Sign out of Aetherion?")) {
         const user = getCurrentUser();
         if (user) window.CaboDB.logActivity(null, "system", "User signed out: " + user.name, {});
-        sessionStorage.removeItem("cabo_session");
+        localStorage.removeItem("aetherion_user");
         document.getElementById("login-username").value = "";
         document.getElementById("login-password").value = "";
         showLoginScreen();
