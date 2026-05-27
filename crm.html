@@ -4526,7 +4526,8 @@ See you in Cabo! ☀️`;
     }
 
     function renderGuestsView(container) {
-      const guests = window.CaboDB.getGuests();
+      // Website leads live only in the dedicated Website Leads tab — keep them out of this directory.
+      const guests = window.CaboDB.getGuests().filter(g => g.status !== "Website Lead");
       const resorts = window.CaboDB.getResorts();
       let resortFilterOptions = '<option value="All">All Resorts</option>';
       resorts.forEach(r => { resortFilterOptions += `<option value="${r}" ${guestHotelFilter === r ? 'selected' : ''}>${r}</option>`; });
@@ -4589,7 +4590,6 @@ See you in Cabo! ☀️`;
         });
       }
       const gAll = guests.length;
-      const gWebsite = guests.filter(g => g.status === "Website Lead").length;
       const gActive = guests.filter(g => g.status === "Active").length;
       const gLead = guests.filter(g => g.status === "Lead").length;
       const gConfirmed = guests.filter(g => g.status === "Confirmed").length;
@@ -4609,9 +4609,6 @@ See you in Cabo! ☀️`;
           <span class="view-tabs-label"><i class="ti ti-filter"></i> Filter by Status:</span>
           <button class="vtab ${guestStatusFilter === "All" ? "active" : ""}" onclick="handleGuestStatusFilter('All')">
             <i class="ti ti-users"></i> All Guests <span class="vtab-count">${gAll}</span>
-          </button>
-          <button class="vtab vtab-website-status ${guestStatusFilter === "Website Lead" ? "active" : ""}" onclick="handleGuestStatusFilter('Website Lead')">
-            <i class="ti ti-world-www"></i> Website Leads <span class="vtab-count">${gWebsite}</span>
           </button>
           <button class="vtab vtab-active-status ${guestStatusFilter === "Active" ? "active" : ""}" onclick="handleGuestStatusFilter('Active')">
             <i class="ti ti-map-pin"></i> Active in Cabo <span class="vtab-count">${gActive}</span>
