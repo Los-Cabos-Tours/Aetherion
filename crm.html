@@ -5222,12 +5222,18 @@ See you in Cabo! ☀️`;
           `<span class="cat-tab${o.id === catalogActiveOperator ? " active" : ""}" onclick="filterCatalogOperator('${o.id}')">${o.label}</span>`
         ).join("");
       }
-      const q = (searchQ || "").toLowerCase();
+      const q = (searchQ || "").trim().toLowerCase();
+      // When the user is searching, ignore the category/operator pills so
+      // matches surface no matter where they sit in the catalog.
       const filtered = catalog.filter(item => {
+        if (q) {
+          return item.name.toLowerCase().includes(q)
+            || item.category.toLowerCase().includes(q)
+            || (item.desc || "").toLowerCase().includes(q);
+        }
         const matchesCat = catFilter === "All" || item.category === catFilter;
         const matchesOp = catalogActiveOperator === "All" || item.operatorId === catalogActiveOperator;
-        const matchesQ = !q || item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
-        return matchesCat && matchesOp && matchesQ;
+        return matchesCat && matchesOp;
       });
       const selectedId = document.getElementById("form-booking-item").value;
       const gridEl = document.getElementById("catalog-grid");
