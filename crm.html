@@ -4016,6 +4016,9 @@ See you in Cabo! ☀️`;
       localStorage.setItem("aetherion_sync_url", DEFAULT_SYNC_URL);
       CloudSync.init();
 
+      // Reclassify existing website-captured leads into the Website Leads tab (one-time).
+      migrateWebsiteLeads();
+
       // Listen for data changes made in any other open tab and refresh this one
       if (!window._crmTabSyncActive) {
         window._crmTabSyncActive = true;
@@ -5715,6 +5718,32 @@ See you in Cabo! ☀️`;
     // =====================================================================
     // URL LEAD CAPTURE
     // =====================================================================
+    // One-time migration: move existing website-captured leads (status "Lead" that carry the
+    // [Website Request] marker, or an explicit website source) into the "Website Lead" status so
+    // they surface in the Website Leads tab. Runs once per browser; idempotent and non-destructive.
+    function migrateWebsiteLeads() {
+      try {
+        if (localStorage.getItem("aetherion_webleads_migrated_v1") === "done") return;
+        const guests = window.CaboDB.getGuests();
+        let moved = 0;
+        guests.forEach(g => {
+          const isWebsiteTagged = (g.source === "website") || (typeof g.notes === "string" && g.notes.indexOf("[Website Request]") !== -1);
+          if (g.status === "Lead" && isWebsiteTagged) {
+            g.status = "Website Lead";
+            window.CaboDB.saveGuest(g);
+            window.CaboDB.logActivity(g.id, "status", `Auto-moved website lead to Website Leads: ${g.name || g.id}`, { from: "Lead", to: "Website Lead" });
+            moved++;
+          }
+        });
+        localStorage.setItem("aetherion_webleads_migrated_v1", "done");
+        if (moved > 0 && window.CaboComponents && window.CaboComponents.showToast) {
+          window.CaboComponents.showToast(`${moved} website lead${moved === 1 ? "" : "s"} moved to the Website Leads tab.`, "success");
+        }
+      } catch (err) {
+        console.error("Website leads migration failed:", err);
+      }
+    }
+
     function captureUrlLead(name, phone, hotel, request) {
       const resorts = window.CaboDB.getResorts();
       // Fuzzy match hotel param to known resort names
@@ -5740,8 +5769,8 @@ See you in Cabo! ☀️`;
       document.getElementById("form-guest-checkin").value = new Date().toISOString().split("T")[0];
       const co = new Date(); co.setDate(co.getDate() + 7);
       document.getElementById("form-guest-checkout").value = co.toISOString().split("T")[0];
-      document.getElementById("form-guest-status").value = "Lead";
-      if (request) document.getElementById("form-guest-notes").value = `[Website Request] ${request}`;
+      document.getElementById("form-guest-status").value = "Website Lead";
+      document.getElementById("form-guest-notes").value = request ? `[Website Request] ${request}` : "[Website Request] Lead captured from website (no message provided).";
       modal.classList.add("open");
       window.CaboComponents.showToast(`Lead captured from website: ${name || phone}`, "info");
     }
