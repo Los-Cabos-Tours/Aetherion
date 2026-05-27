@@ -347,6 +347,7 @@
     }
 
     .vtab.vtab-active-status.active  { background:rgba(77,184,212,0.15); border-color:rgba(77,184,212,0.45); color:var(--teal); }
+    .vtab.vtab-website-status.active { background:rgba(212,88,26,0.15); border-color:rgba(212,88,26,0.5); color:var(--coral); }
     .vtab.vtab-lead-status.active    { background:rgba(201,168,76,0.15); border-color:rgba(201,168,76,0.45); color:var(--gold); }
     .vtab.vtab-confirmed-status.active { background:rgba(91,199,142,0.15); border-color:rgba(91,199,142,0.4); color:#5BC78E; }
     .vtab.vtab-completed-status.active { background:rgba(168,184,200,0.12); border-color:rgba(168,184,200,0.3); color:var(--text-muted); }
@@ -781,6 +782,7 @@
     .badge-active { background-color: rgba(77, 184, 212, 0.15); color: var(--teal); }
     .badge-confirmed { background-color: rgba(37, 211, 102, 0.15); color: var(--whatsapp); }
     .badge-lead { background-color: rgba(201, 168, 76, 0.15); color: var(--gold); }
+    .badge-website { background-color: rgba(212, 88, 26, 0.18); color: var(--coral); border: 1px solid rgba(212, 88, 26, 0.35); }
     .badge-completed { background-color: rgba(255, 255, 255, 0.08); color: var(--text-muted); }
     .badge-cancelled { background-color: rgba(212, 88, 26, 0.15); color: var(--coral); }
     .badge-pending { background-color: rgba(212, 88, 26, 0.15); color: var(--coral); }
@@ -2251,6 +2253,7 @@
             <div class="form-group">
               <label class="form-label" for="form-guest-status">Guest Status</label>
               <select id="form-guest-status" class="form-select" required>
+                <option value="Website Lead">Website Lead (pending details)</option>
                 <option value="Lead">Lead / Inquiry</option>
                 <option value="Confirmed">Confirmed Booking</option>
                 <option value="Active">Active in Cabo</option>
@@ -3707,6 +3710,7 @@ See you in Cabo! ☀️`;
         if (!guest || !container) return;
         titleEl.textContent = guest.name;
         let statusClass = "badge-lead";
+        if (guest.status === "Website Lead") statusClass = "badge-website";
         if (guest.status === "Active") statusClass = "badge-active";
         if (guest.status === "Confirmed") statusClass = "badge-confirmed";
         if (guest.status === "Completed") statusClass = "badge-completed";
@@ -3766,6 +3770,7 @@ See you in Cabo! ☀️`;
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <span class="badge ${statusClass}">${guest.status}</span>
             <div class="tbl-actions">
+              ${guest.status === "Website Lead" ? `<button onclick="convertWebsiteLead('${guest.id}')" class="tbl-btn tbl-btn-edit" style="background:rgba(91,199,142,0.15); color:#5BC78E; border-color:rgba(91,199,142,0.4);"><i class="ti ti-arrow-up-right"></i> Convert to Lead</button>` : ""}
               <button onclick="openGuestWizard('${guest.id}')" class="tbl-btn tbl-btn-edit"><i class="ti ti-edit"></i> Edit Profile</button>
               <button onclick="confirmDeleteGuest('${guest.id}')" class="tbl-btn tbl-btn-delete"><i class="ti ti-trash"></i> Delete</button>
             </div>
@@ -4529,6 +4534,7 @@ See you in Cabo! ☀️`;
         const canCreateBooking = hasPermission("bookings", "create");
         filteredGuests.forEach(g => {
           let badgeClass = 'badge-lead';
+          if (g.status === 'Website Lead') badgeClass = 'badge-website';
           if (g.status === 'Active') badgeClass = 'badge-active';
           if (g.status === 'Confirmed') badgeClass = 'badge-confirmed';
           if (g.status === 'Completed') badgeClass = 'badge-completed';
@@ -4566,6 +4572,7 @@ See you in Cabo! ☀️`;
         });
       }
       const gAll = guests.length;
+      const gWebsite = guests.filter(g => g.status === "Website Lead").length;
       const gActive = guests.filter(g => g.status === "Active").length;
       const gLead = guests.filter(g => g.status === "Lead").length;
       const gConfirmed = guests.filter(g => g.status === "Confirmed").length;
@@ -4585,6 +4592,9 @@ See you in Cabo! ☀️`;
           <span class="view-tabs-label"><i class="ti ti-filter"></i> Filter by Status:</span>
           <button class="vtab ${guestStatusFilter === "All" ? "active" : ""}" onclick="handleGuestStatusFilter('All')">
             <i class="ti ti-users"></i> All Guests <span class="vtab-count">${gAll}</span>
+          </button>
+          <button class="vtab vtab-website-status ${guestStatusFilter === "Website Lead" ? "active" : ""}" onclick="handleGuestStatusFilter('Website Lead')">
+            <i class="ti ti-world-www"></i> Website Leads <span class="vtab-count">${gWebsite}</span>
           </button>
           <button class="vtab vtab-active-status ${guestStatusFilter === "Active" ? "active" : ""}" onclick="handleGuestStatusFilter('Active')">
             <i class="ti ti-map-pin"></i> Active in Cabo <span class="vtab-count">${gActive}</span>
@@ -5128,6 +5138,19 @@ See you in Cabo! ☀️`;
       window.CaboDB.logActivity(saved.id, "lead", isNew ? `New guest lead created: ${saved.name} — ${saved.hotel}` : `Profile updated: ${saved.name}`, { hotel: saved.hotel, status: saved.status, changes: guestChanges || undefined });
       window.CaboComponents.showToast(`Guest "${saved.name}" saved!`, "success");
       closeGuestModal();
+      if (currentView === 'guests') renderGuestsView(document.getElementById("app-view"));
+      if (currentView === 'dashboard') renderDashboardView(document.getElementById("app-view"));
+      updateHeaderCounters();
+      if (document.getElementById("guest-drawer-overlay").classList.contains("open")) openGuestDrawer(saved.id);
+    }
+
+    function convertWebsiteLead(id) {
+      const g = window.CaboDB.getGuest(id);
+      if (!g) return;
+      g.status = "Lead";
+      const saved = window.CaboDB.saveGuest(g);
+      window.CaboDB.logActivity(saved.id, "status", `Converted from Website Lead to Lead: ${saved.name}`, { from: "Website Lead", to: "Lead" });
+      window.CaboComponents.showToast(`Moved to Leads & Inquiries.`, "success");
       if (currentView === 'guests') renderGuestsView(document.getElementById("app-view"));
       if (currentView === 'dashboard') renderDashboardView(document.getElementById("app-view"));
       updateHeaderCounters();
