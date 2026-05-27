@@ -5723,11 +5723,12 @@ See you in Cabo! ☀️`;
     // they surface in the Website Leads tab. Runs once per browser; idempotent and non-destructive.
     function migrateWebsiteLeads() {
       try {
-        if (localStorage.getItem("aetherion_webleads_migrated_v1") === "done") return;
+        if (localStorage.getItem("aetherion_webleads_migrated_v2") === "done") return;
         const guests = window.CaboDB.getGuests();
         let moved = 0;
         guests.forEach(g => {
-          const isWebsiteTagged = (g.source === "website") || (typeof g.notes === "string" && g.notes.indexOf("[Website Request]") !== -1);
+          const nameIsWebsiteLead = typeof g.name === "string" && g.name.trim().toLowerCase().startsWith("website lead");
+          const isWebsiteTagged = (g.source === "website") || nameIsWebsiteLead || (typeof g.notes === "string" && g.notes.indexOf("[Website Request]") !== -1);
           if (g.status === "Lead" && isWebsiteTagged) {
             g.status = "Website Lead";
             window.CaboDB.saveGuest(g);
@@ -5735,7 +5736,7 @@ See you in Cabo! ☀️`;
             moved++;
           }
         });
-        localStorage.setItem("aetherion_webleads_migrated_v1", "done");
+        localStorage.setItem("aetherion_webleads_migrated_v2", "done");
         if (moved > 0 && window.CaboComponents && window.CaboComponents.showToast) {
           window.CaboComponents.showToast(`${moved} website lead${moved === 1 ? "" : "s"} moved to the Website Leads tab.`, "success");
         }
