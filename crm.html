@@ -3496,6 +3496,38 @@
       } catch (e) { /* migration is best-effort */ }
     })();
 
+    // One-time migration: rewrite stale activity log entries whose price was
+    // computed under the old per-person formula. Matches the catalog item by
+    // name in the description, then replaces the $X,XXX.XX amount.
+    (function migrateFlatRateActivityLog() {
+      try {
+        const FLAG = "aetherion_migration_flatRate_log_v1";
+        if (localStorage.getItem(FLAG)) return;
+        const logs = JSON.parse(localStorage.getItem("aetherion_activitylog") || "[]");
+        const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+        const flatItems = CATALOG_ITEMS.filter(i => i.flatRate)
+          .slice()
+          .sort((a, b) => b.name.length - a.name.length);
+        let changed = 0;
+        logs.forEach(l => {
+          if (!l.description || typeof l.description !== "string") return;
+          const matched = flatItems.find(i => l.description.indexOf(i.name) !== -1);
+          if (!matched) return;
+          const correctStr = fmt.format(matched.adultPrice);
+          const newDesc = l.description.replace(/\$[\d,]+\.\d{2}/, () => correctStr);
+          if (newDesc !== l.description) {
+            l.description = newDesc;
+            if (l.meta && typeof l.meta === "object") l.meta.amount = matched.adultPrice;
+            changed++;
+          }
+        });
+        if (changed > 0) {
+          localStorage.setItem("aetherion_activitylog", JSON.stringify(logs));
+        }
+        localStorage.setItem(FLAG, String(Date.now()));
+      } catch (e) { /* best effort */ }
+    })();
+
     /* ==========================================================================
        UI COMPONENTS CODE (js/components.js inline)
        ========================================================================== */
