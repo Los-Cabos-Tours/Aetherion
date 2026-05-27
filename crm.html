@@ -2707,10 +2707,10 @@
       { id: "pkg-tesoro",name: "All-Inclusive 7-Night Package — Hotel Tesoro Los Cabos",       operatorId: "lct", category: "Vacation Packages", adultPrice: 5000, childPrice: 0, desc: "Suite + airport transfers + dinner + tequila tasting + Arch boat tour + 3 activities (up to 4 guests)" },
       { id: "pkg-solmar",name: "All-Inclusive 7-Night Package — Grand Solmar Land's End",       operatorId: "lct", category: "Vacation Packages", adultPrice: 6000, childPrice: 0, desc: "Suite + airport transfers + dinner + tequila tasting + Arch boat tour + 3 activities (up to 4 guests)" },
       // ── ATV & OFF-ROAD ─────────────────────────────────────────────────────
-      { id: "c-atv-single",  name: "Single ATV Desert Tour (1.5 hrs)",          operatorId: "cactus",      category: "ATV & Off-road", adultPrice: 130, childPrice: 0 },
-      { id: "c-atv-double",  name: "Double ATV Desert Tour — Share (2 hrs)",    operatorId: "cactus",      category: "ATV & Off-road", adultPrice: 170, childPrice: 0 },
-      { id: "c-utv-double",  name: "UTV Buggy Double Ride (2 hrs)",             operatorId: "cactus",      category: "ATV & Off-road", adultPrice: 280, childPrice: 0 },
-      { id: "wc-atv",        name: "Wild Canyon Off-Road ATV Canyon Race",      operatorId: "wild-canyon", category: "ATV & Off-road", adultPrice: 155, childPrice: 0 },
+      { id: "c-atv-single",  name: "Single ATV Desert Tour (1.5 hrs)",          operatorId: "cactus",      category: "ATV & Off-road", adultPrice: 130, childPrice: 0, flatRate: true },
+      { id: "c-atv-double",  name: "Double ATV Desert Tour — Share (2 hrs)",    operatorId: "cactus",      category: "ATV & Off-road", adultPrice: 170, childPrice: 0, flatRate: true },
+      { id: "c-utv-double",  name: "UTV Buggy Double Ride (2 hrs)",             operatorId: "cactus",      category: "ATV & Off-road", adultPrice: 280, childPrice: 0, flatRate: true },
+      { id: "wc-atv",        name: "Wild Canyon Off-Road ATV Canyon Race",      operatorId: "wild-canyon", category: "ATV & Off-road", adultPrice: 155, childPrice: 0, flatRate: true },
       { id: "wc-ziplines",   name: "Wild Canyon Monster Ziplines (8 Cables)",   operatorId: "wild-canyon", category: "ATV & Off-road", adultPrice: 145, childPrice: 145 },
       { id: "wc-combo",      name: "Wild Canyon Full Experience Combo",         operatorId: "wild-canyon", category: "ATV & Off-road", adultPrice: 180, childPrice: 150 },
       { id: "wc-bridge",     name: "Suspension Bridge & Animal Sanctuary",      operatorId: "wild-canyon", category: "ATV & Off-road", adultPrice: 40,  childPrice: 30 },
@@ -2719,7 +2719,7 @@
       { id: "ca-snorkeling", name: "Cabo Pulmo Snorkeling Expedition",          operatorId: "cabo-adv",    category: "Water sports", adultPrice: 189, childPrice: 139 },
       { id: "ca-kayak",      name: "Sea Kayak & Snorkel Adventure",             operatorId: "cabo-adv",    category: "Water sports", adultPrice: 89,  childPrice: 59 },
       { id: "ce-snorkel",    name: "Snorkel Fun Cruise — Open Bar & Lunch",     operatorId: "cabo-escape", category: "Water sports", adultPrice: 79,  childPrice: 39 },
-      { id: "ca-wave-runner","name": "Wave Runner Rentals (1 hr)",              operatorId: "costa-azul",  category: "Water sports", adultPrice: 85,  childPrice: 0 },
+      { id: "ca-wave-runner","name": "Wave Runner Rentals (1 hr)",              operatorId: "costa-azul",  category: "Water sports", adultPrice: 85,  childPrice: 0, flatRate: true },
       { id: "ca-parasail",   name: "Parasailing over the Arch",                 operatorId: "costa-azul",  category: "Water sports", adultPrice: 75,  childPrice: 55 },
       // ── WHALE WATCHING ─────────────────────────────────────────────────────
       { id: "ca-whale",      name: "Luxury Whale Watching Cruise",              operatorId: "cabo-adv",    category: "Whale watching", adultPrice: 99,  childPrice: 69 },
@@ -2730,40 +2730,43 @@
       { id: "ce-sunset",     name: "Sunset Fajitas & Open Bar DJ Cruise",       operatorId: "cabo-escape", category: "Yacht & Sailing", adultPrice: 89,  childPrice: 45 },
       { id: "ec-arch",       name: "Eco Cat Lands End Arch Tour",               operatorId: "eco-cat",     category: "Yacht & Sailing", adultPrice: 65,  childPrice: 32 },
       { id: "ec-sunset",     name: "Eco Cat Sunset Catamaran Sail",             operatorId: "eco-cat",     category: "Yacht & Sailing", adultPrice: 85,  childPrice: 42 },
-      { id: "priv-yacht-hd", name: "Private Yacht Charter (Half Day — 4 hrs)", operatorId: "lct",         category: "Yacht & Sailing", adultPrice: 450, childPrice: 450, desc: "Up to 12 guests, open bar, snorkel gear included" },
-      { id: "priv-yacht-fd", name: "Private Yacht Charter (Full Day — 8 hrs)", operatorId: "lct",         category: "Yacht & Sailing", adultPrice: 850, childPrice: 850, desc: "Up to 12 guests, open bar, lunch, snorkel gear" },
+      { id: "priv-yacht-hd", name: "Private Yacht Charter (Half Day — 4 hrs)", operatorId: "lct",         category: "Yacht & Sailing", adultPrice: 450, childPrice: 450, flatRate: true, desc: "Up to 12 guests, open bar, snorkel gear included" },
+      { id: "priv-yacht-fd", name: "Private Yacht Charter (Full Day — 8 hrs)", operatorId: "lct",         category: "Yacht & Sailing", adultPrice: 850, childPrice: 850, flatRate: true, desc: "Up to 12 guests, open bar, lunch, snorkel gear" },
       { id: "lv-arch-boat",  name: "Arch Boat Tour — Land's End (Glass Bottom)",operatorId: "luvies",      category: "Yacht & Sailing", adultPrice: 45,  childPrice: 25 },
       // ── SPORT FISHING ──────────────────────────────────────────────────────
-      { id: "sf-panga",      name: "Local 23ft Panga Charter (5 hours)",        operatorId: "cabo-ray",    category: "Sport fishing", adultPrice: 320,  childPrice: 320 },
-      { id: "sf-super",      name: "Super Panga 28ft Charter (6 hours)",        operatorId: "cabo-ray",    category: "Sport fishing", adultPrice: 480,  childPrice: 480 },
-      { id: "sf-cruiser",    name: "31ft Sport Fishing Cruiser (8 hours)",      operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 750, childPrice: 750 },
-      { id: "sf-yacht",      name: "Luxury 42ft Sport Fisher Yacht (8 hrs)",   operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 1200, childPrice: 1200 },
-      { id: "sf-yacht-fish", name: "Luxury 45ft Sport Fisher Yacht",            operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 1450, childPrice: 1450 },
-      { id: "sf-super-yacht","name": "Premium 55ft Sport Fisher (Full Day)",   operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 1800, childPrice: 1800 },
+      { id: "sf-panga",      name: "Local 23ft Panga Charter (5 hours)",        operatorId: "cabo-ray",    category: "Sport fishing", adultPrice: 320,  childPrice: 320, flatRate: true },
+      { id: "sf-super",      name: "Super Panga 28ft Charter (6 hours)",        operatorId: "cabo-ray",    category: "Sport fishing", adultPrice: 480,  childPrice: 480, flatRate: true },
+      { id: "sf-cruiser",    name: "31ft Sport Fishing Cruiser (8 hours)",      operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 750, childPrice: 750, flatRate: true },
+      { id: "sf-yacht",      name: "Luxury 42ft Sport Fisher Yacht (8 hrs)",   operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 1200, childPrice: 1200, flatRate: true },
+      { id: "sf-yacht-fish", name: "Luxury 45ft Sport Fisher Yacht",            operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 1450, childPrice: 1450, flatRate: true },
+      { id: "sf-super-yacht","name": "Premium 55ft Sport Fisher (Full Day)",   operatorId: "fishing-charters", category: "Sport fishing", adultPrice: 1800, childPrice: 1800, flatRate: true },
       // ── CULTURE & FOOD ─────────────────────────────────────────────────────
       { id: "lv-tequila",    name: "Tequila & Mezcal Tasting Tour",             operatorId: "luvies",      category: "Culture & food", adultPrice: 79,  childPrice: 0 },
       { id: "lv-tacos",      name: "Los Cabos Food Tour — Best Tacos & Seafood",operatorId: "luvies",      category: "Culture & food", adultPrice: 65,  childPrice: 35 },
       { id: "lv-cooking",    name: "Mexican Cooking Class with Market Visit",   operatorId: "luvies",      category: "Culture & food", adultPrice: 95,  childPrice: 55 },
       { id: "c-camel",       name: "Pacific Beach Camel Ride",                  operatorId: "cactus",      category: "Culture & food", adultPrice: 110, childPrice: 75 },
       // ── TRANSFERS & EXTRAS ─────────────────────────────────────────────────
-      { id: "tr-arrival",    name: "Airport Arrival — Private Suburban/Van",    operatorId: "transport",   category: "Transfers & Extras", adultPrice: 120, childPrice: 120 },
-      { id: "tr-departure",  name: "Airport Departure — Private Suburban/Van",  operatorId: "transport",   category: "Transfers & Extras", adultPrice: 100, childPrice: 100 },
-      { id: "tr-round",      name: "Round-Trip Airport Transfer (Up to 7 pax)", operatorId: "transport",   category: "Transfers & Extras", adultPrice: 220, childPrice: 220 },
-      { id: "tr-airport-round", name: "Round-Trip Airport Private Van (Up to 7 pax)", operatorId: "transport", category: "Transfers & Extras", adultPrice: 220, childPrice: 220 },
-      { id: "tr-local",      name: "Local Day Tour Transport (per hour)",        operatorId: "transport",   category: "Transfers & Extras", adultPrice: 60,  childPrice: 60 },
+      { id: "tr-arrival",    name: "Airport Arrival — Private Suburban/Van",    operatorId: "transport",   category: "Transfers & Extras", adultPrice: 120, childPrice: 120, flatRate: true },
+      { id: "tr-departure",  name: "Airport Departure — Private Suburban/Van",  operatorId: "transport",   category: "Transfers & Extras", adultPrice: 100, childPrice: 100, flatRate: true },
+      { id: "tr-round",      name: "Round-Trip Airport Transfer (Up to 7 pax)", operatorId: "transport",   category: "Transfers & Extras", adultPrice: 220, childPrice: 220, flatRate: true },
+      { id: "tr-airport-round", name: "Round-Trip Airport Private Van (Up to 7 pax)", operatorId: "transport", category: "Transfers & Extras", adultPrice: 220, childPrice: 220, flatRate: true },
+      { id: "tr-local",      name: "Local Day Tour Transport (per hour)",        operatorId: "transport",   category: "Transfers & Extras", adultPrice: 60,  childPrice: 60, flatRate: true },
       { id: "ext-dinner",    name: "Private In-Villa Dinner (per person)",       operatorId: "lct",         category: "Transfers & Extras", adultPrice: 85,  childPrice: 45 },
       { id: "ext-chef",      name: "Private Chef for the Evening (up to 8 pax)",operatorId: "lct",         category: "Transfers & Extras", adultPrice: 350, childPrice: 0, desc: "Flat rate for full dinner service with private chef" },
       { id: "ext-spa",       name: "In-Villa Spa Package (2 therapists, 2 hrs)",operatorId: "lct",         category: "Transfers & Extras", adultPrice: 280, childPrice: 0 },
-      { id: "lct-car-rent",  name: "Car Rental Delivery (per day — SUV/Van)",    operatorId: "lct",         category: "Transfers & Extras", adultPrice: 95,  childPrice: 0, desc: "Flat rate per day, delivered to hotel or villa" },
+      { id: "lct-car-rent",  name: "Car Rental Delivery (per day — SUV/Van)",    operatorId: "lct",         category: "Transfers & Extras", adultPrice: 95,  childPrice: 0, flatRate: true, desc: "Flat rate per day, delivered to hotel or villa" },
       { id: "lct-photo",     name: "Professional Photography Session (2 hrs)",   operatorId: "lct",         category: "Transfers & Extras", adultPrice: 280, childPrice: 0, desc: "Arch, beach, or in-villa; digital gallery included" },
       { id: "lct-baby",      name: "Baby Equipment & Nanny Service (per day)",   operatorId: "lct",         category: "Transfers & Extras", adultPrice: 120, childPrice: 0, desc: "Stroller, crib, car seat + certified nanny" },
       { id: "lct-security",  name: "Private Security Detail (per day)",           operatorId: "lct",         category: "Transfers & Extras", adultPrice: 200, childPrice: 0 },
-      { id: "lct-golf-cart", name: "Golf Cart Rental — Day Use",                  operatorId: "lct",         category: "Transfers & Extras", adultPrice: 85,  childPrice: 0 },
+      { id: "lct-golf-cart", name: "Golf Cart Rental — Day Use",                  operatorId: "lct",         category: "Transfers & Extras", adultPrice: 85,  childPrice: 0, flatRate: true },
       { id: "lct-catering",  name: "Villa Catering & Event Setup (per event)",    operatorId: "lct",         category: "Transfers & Extras", adultPrice: 450, childPrice: 0, desc: "Includes setup, service staff, and full catering" },
+      { id: "ca-park-pass",  name: "Cabo Adventures Park Pass",                   operatorId: "cabo-adv",    category: "Transfers & Extras", adultPrice: 250, childPrice: 250, desc: "Full-day park access" },
+      { id: "wc-park-pass",  name: "Wild Canyon Park Pass (Adult)",               operatorId: "wild-canyon", category: "Transfers & Extras", adultPrice: 200, childPrice: 200, desc: "Adult-only day pass" },
+      { id: "wc-park-pass-family", name: "Wild Canyon Park Pass (Adult/Kids 4-12)", operatorId: "wild-canyon", category: "Transfers & Extras", adultPrice: 131, childPrice: 131, desc: "Family rate adult or child 4-12" },
       // ── WATER SPORTS (additional) ──────────────────────────────────────────
-      { id: "ca-flyboard",   name: "Flyboard Water Jet Pack (30 min)",            operatorId: "costa-azul",  category: "Water sports", adultPrice: 99,  childPrice: 0 },
-      { id: "ca-jetski",     name: "Jet Ski Rental (1 hr)",                       operatorId: "costa-azul",  category: "Water sports", adultPrice: 100, childPrice: 0 },
-      { id: "ca-paddle",     name: "Stand-Up Paddleboard Rental (1 hr)",          operatorId: "costa-azul",  category: "Water sports", adultPrice: 40,  childPrice: 25 },
+      { id: "ca-flyboard",   name: "Flyboard Water Jet Pack (30 min)",            operatorId: "costa-azul",  category: "Water sports", adultPrice: 99,  childPrice: 0, flatRate: true },
+      { id: "ca-jetski",     name: "Jet Ski Rental (1 hr)",                       operatorId: "costa-azul",  category: "Water sports", adultPrice: 100, childPrice: 0, flatRate: true },
+      { id: "ca-paddle",     name: "Stand-Up Paddleboard Rental (1 hr)",          operatorId: "costa-azul",  category: "Water sports", adultPrice: 40,  childPrice: 25, flatRate: true },
       { id: "ca-scuba",      name: "Scuba Diving — Certified Diver (1 tank)",     operatorId: "cabo-adv",    category: "Water sports", adultPrice: 110, childPrice: 0 },
       { id: "ca-night-snk",  name: "Night Snorkeling Adventure",                  operatorId: "cabo-adv",    category: "Water sports", adultPrice: 79,  childPrice: 55 },
       // ── GOLF & RECREATION ──────────────────────────────────────────────────
@@ -2771,7 +2774,7 @@
       { id: "lct-golf-18",   name: "Golf Round — 18 Holes (Premium Course Booking)",  operatorId: "lct",    category: "Golf & Recreation", adultPrice: 260, childPrice: 120 },
       { id: "lct-golf-club", name: "Golf Club Rental Set (18 holes)",              operatorId: "lct",         category: "Golf & Recreation", adultPrice: 65,  childPrice: 0 },
       { id: "lct-horse",     name: "Horseback Riding on the Beach (2 hrs)",        operatorId: "lct",         category: "Golf & Recreation", adultPrice: 95,  childPrice: 65 },
-      { id: "lct-quad-bike", name: "Quad Bike Sightseeing Tour (1 hr)",            operatorId: "lct",         category: "Golf & Recreation", adultPrice: 80,  childPrice: 0 },
+      { id: "lct-quad-bike", name: "Quad Bike Sightseeing Tour (1 hr)",            operatorId: "lct",         category: "Golf & Recreation", adultPrice: 80,  childPrice: 0, flatRate: true },
       // ── CULTURE & FOOD (additional) ────────────────────────────────────────
       { id: "lct-tequila-estate", name: "Private Tequila Estate & Distillery Tour", operatorId: "luvies",    category: "Culture & food", adultPrice: 120, childPrice: 0 },
       { id: "lct-cabo-city", name: "Cabo San Lucas City & Marina Walking Tour",    operatorId: "luvies",      category: "Culture & food", adultPrice: 55,  childPrice: 25 },
@@ -2785,7 +2788,10 @@
       if (!item) return { total: 0, netCost: 0, profit: 0, operatorId: "" };
       const operator = DEFAULT_OPERATORS.find(o => o.id === item.operatorId);
       const netRate = operator ? operator.netRate : 0.75;
-      let total = customPrice !== null ? total = customPrice : (item.adultPrice * adultsCount) + (item.childPrice * childrenCount);
+      const retail = item.flatRate
+        ? item.adultPrice
+        : (item.adultPrice * adultsCount) + (item.childPrice * childrenCount);
+      let total = customPrice !== null ? customPrice : retail;
       const netCost = parseFloat((total * netRate).toFixed(2));
       const profit = parseFloat((total - netCost).toFixed(2));
       return { total, netCost, profit, operatorId: item.operatorId };
@@ -3463,6 +3469,33 @@
     db.init();
     window.CaboDB = db;
 
+    // One-time migration: recompute totals for bookings created before flatRate existed.
+    (function migrateFlatRateBookings() {
+      try {
+        const FLAG = "aetherion_migration_flatRate_v1";
+        if (localStorage.getItem(FLAG)) return;
+        const bookings = db.getBookings();
+        let changed = 0;
+        bookings.forEach(b => {
+          const item = CATALOG_ITEMS.find(i => i.id === b.catalogItemId);
+          if (!item || !item.flatRate) return;
+          const expected = item.adultPrice;
+          if (typeof b.totalPrice === "number" && Math.abs(b.totalPrice - expected) > 0.01) {
+            const fin = calculateBookingFinancials(b.catalogItemId, b.adultsCount || 1, b.childrenCount || 0, null);
+            b.totalPrice = fin.total;
+            b.netCost = fin.netCost;
+            b.profitMargin = fin.profit;
+            b.operatorId = fin.operatorId;
+            changed++;
+          }
+        });
+        if (changed > 0) {
+          localStorage.setItem("aetherion_bookings", JSON.stringify(bookings));
+        }
+        localStorage.setItem(FLAG, String(Date.now()));
+      } catch (e) { /* migration is best-effort */ }
+    })();
+
     /* ==========================================================================
        UI COMPONENTS CODE (js/components.js inline)
        ========================================================================== */
@@ -3521,7 +3554,9 @@ See you in Cabo! ☀️`;
         }
         const op = window.CaboDB.getOperator(item.operatorId);
         const netRatePercent = op ? op.netRate * 100 : 75;
-        let subtotal = (item.adultPrice * adults) + (item.childPrice * children);
+        let subtotal = item.flatRate
+          ? item.adultPrice
+          : (item.adultPrice * adults) + (item.childPrice * children);
         let isOverridden = false;
         let finalTotal = subtotal;
         if (customPrice !== null && customPrice !== "" && !isNaN(customPrice) && customPrice > 0) {
@@ -3531,11 +3566,14 @@ See you in Cabo! ☀️`;
         const netCost = parseFloat((finalTotal * (netRatePercent / 100)).toFixed(2));
         const profit = parseFloat((finalTotal - netCost).toFixed(2));
         const marginPercent = finalTotal > 0 ? Math.round((profit / finalTotal) * 100) : 0;
+        const retailRow = item.flatRate
+          ? `Flat rate per vehicle = $${subtotal} USD`
+          : `${adults} × $${item.adultPrice} + ${children} × $${item.childPrice} = $${subtotal} USD`;
         container.innerHTML = `
           <div class="calc-card">
             <div class="calc-row">
               <span class="profile-label">Standard Retail Calculation</span>
-              <span class="profile-val">${adults} × $${item.adultPrice} + ${children} × $${item.childPrice} = $${subtotal} USD</span>
+              <span class="profile-val">${retailRow}</span>
             </div>
             ${isOverridden ? `
             <div class="calc-row">
@@ -5111,9 +5149,11 @@ See you in Cabo! ☀️`;
         const isCustom = item.id === "custom-entry";
         const priceText = isCustom
           ? `<span style="color:var(--gold)">Enter name &amp; price manually</span>`
-          : item.childPrice > 0
-            ? `Ad: <strong>$${item.adultPrice}</strong> / Ch: <strong>$${item.childPrice}</strong>`
-            : `<strong>$${item.adultPrice}</strong> per person`;
+          : item.flatRate
+            ? `<strong>$${item.adultPrice}</strong> per vehicle`
+            : item.childPrice > 0
+              ? `Ad: <strong>$${item.adultPrice}</strong> / Ch: <strong>$${item.childPrice}</strong>`
+              : `<strong>$${item.adultPrice}</strong> per person`;
         const customStyle = isCustom ? " style=\"border-color:rgba(201,168,76,0.35); background:rgba(201,168,76,0.06);\"" : "";
         return `<div class="catalog-card${item.id === selectedId ? " selected" : ""}"${customStyle} onclick="selectCatalogItem('${item.id}')">
           <div class="catalog-card-cat">${isCustom ? "✎ Custom" : item.category}</div>
@@ -5230,7 +5270,8 @@ See you in Cabo! ☀️`;
         bar.style.display = "flex";
         document.getElementById("catalog-sel-name").textContent = item.name;
         const priceLabel = itemId === "custom-entry" ? "Enter name & price below" :
-          "Adult $" + item.adultPrice + (item.childPrice ? " / Child $" + item.childPrice : "");
+          item.flatRate ? ("$" + item.adultPrice + " per vehicle (flat rate)") :
+          ("Adult $" + item.adultPrice + (item.childPrice ? " / Child $" + item.childPrice : ""));
         document.getElementById("catalog-sel-price").textContent = priceLabel;
       }
       if (picker) picker.style.display = "none";
@@ -5263,7 +5304,9 @@ See you in Cabo! ☀️`;
       if (overridePrice === null && discountPct > 0 && itemId) {
         const item = window.CaboDB.getCatalogItem(itemId);
         if (item) {
-          const retail = (item.adultPrice * adults) + (item.childPrice * children);
+          const retail = item.flatRate
+            ? item.adultPrice
+            : (item.adultPrice * adults) + (item.childPrice * children);
           overridePrice = parseFloat((retail * (1 - discountPct / 100)).toFixed(2));
         }
       }
@@ -5309,7 +5352,9 @@ See you in Cabo! ☀️`;
       } else if (discountPct > 0 && catalogItem) {
         const adults = parseInt(document.getElementById("form-booking-adults").value) || 0;
         const children = parseInt(document.getElementById("form-booking-children").value) || 0;
-        const retail = (catalogItem.adultPrice * adults) + (catalogItem.childPrice * children);
+        const retail = catalogItem.flatRate
+          ? catalogItem.adultPrice
+          : (catalogItem.adultPrice * adults) + (catalogItem.childPrice * children);
         finalPrice = parseFloat((retail * (1 - discountPct / 100)).toFixed(2));
       }
 
