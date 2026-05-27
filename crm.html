@@ -2091,6 +2091,12 @@
             <div><span>Guests &amp; Leads</span><div class="nav-sub">All guests, leads &amp; contacts</div></div>
           </a>
         </li>
+        <li class="menu-item" id="nav-webleads">
+          <a onclick="navigate('webleads')">
+            <i class="ti ti-world-www"></i>
+            <div><span>Website Leads</span><div class="nav-sub">Auto-captured leads from the website</div></div>
+          </a>
+        </li>
         <li class="menu-item" id="nav-bookings">
           <a onclick="navigate('bookings')">
             <i class="ti ti-calendar-event"></i>
@@ -2692,9 +2698,9 @@
     ];
 
     const ROLE_ACCESS = {
-      superadmin: ["dashboard", "guests", "bookings", "concierge", "operators", "history", "settings", "users", "assistant"],
-      admin:      ["dashboard", "guests", "bookings", "concierge", "operators", "history", "settings", "assistant"],
-      staff:      ["dashboard", "guests", "concierge", "assistant"],
+      superadmin: ["dashboard", "guests", "webleads", "bookings", "concierge", "operators", "history", "settings", "users", "assistant"],
+      admin:      ["dashboard", "guests", "webleads", "bookings", "concierge", "operators", "history", "settings", "assistant"],
+      staff:      ["dashboard", "guests", "webleads", "concierge", "assistant"],
       viewer:     ["dashboard", "assistant"]
     };
 
@@ -2702,6 +2708,7 @@
     const CRM_MODULES = {
       dashboard:  { label: "Dashboard",            icon: "ti-dashboard",       desc: "Live KPIs, revenue charts & today ops",        color: "rgba(201,168,76,0.15)",  actions: ["view"] },
       guests:     { label: "Guests & Leads",        icon: "ti-users",           desc: "Guest profiles, leads, contact management",    color: "rgba(77,184,212,0.12)",  actions: ["view","create","edit","delete","export","whatsapp"] },
+      webleads:   { label: "Website Leads",          icon: "ti-world-www",       desc: "Auto-captured inquiries from the website",     color: "rgba(91,199,142,0.12)",  actions: ["view"] },
       bookings:   { label: "Bookings Desk",         icon: "ti-calendar-event",  desc: "Tours, excursions, payments, vouchers",        color: "rgba(77,184,212,0.12)",  actions: ["view","create","edit","delete","export","whatsapp"] },
       concierge:  { label: "Concierge Desk",        icon: "ti-concierge-bell",  desc: "Tasks, food deliveries, transfers, spa",       color: "rgba(77,184,212,0.12)",  actions: ["view","create","edit","delete"] },
       operators:  { label: "Partner Operators",     icon: "ti-ship",            desc: "Vendor contacts, net rates, performance",      color: "rgba(77,184,212,0.12)",  actions: ["view","create","edit","delete","whatsapp"] },
@@ -2716,6 +2723,7 @@
       superadmin: {
         dashboard:  { view:true },
         guests:     { view:true, create:true, edit:true, delete:true, export:true, whatsapp:true },
+        webleads:   { view:true },
         bookings:   { view:true, create:true, edit:true, delete:true, export:true, whatsapp:true },
         concierge:  { view:true, create:true, edit:true, delete:true },
         operators:  { view:true, create:true, edit:true, delete:true, whatsapp:true },
@@ -2727,6 +2735,7 @@
       admin: {
         dashboard:  { view:true },
         guests:     { view:true, create:true, edit:true, delete:false, export:true, whatsapp:true },
+        webleads:   { view:true },
         bookings:   { view:true, create:true, edit:true, delete:false, export:true, whatsapp:true },
         concierge:  { view:true, create:true, edit:true, delete:false },
         operators:  { view:true, create:false, edit:false, delete:false, whatsapp:true },
@@ -2738,6 +2747,7 @@
       staff: {
         dashboard:  { view:true },
         guests:     { view:true, create:false, edit:false, delete:false, export:false, whatsapp:true },
+        webleads:   { view:true },
         bookings:   { view:false, create:false, edit:false, delete:false, export:false, whatsapp:false },
         concierge:  { view:true, create:true, edit:true, delete:false },
         operators:  { view:false, create:false, edit:false, delete:false, whatsapp:false },
@@ -2749,6 +2759,7 @@
       viewer: {
         dashboard:  { view:true },
         guests:     { view:false, create:false, edit:false, delete:false, export:false, whatsapp:false },
+        webleads:   { view:false },
         bookings:   { view:false, create:false, edit:false, delete:false, export:false, whatsapp:false },
         concierge:  { view:false, create:false, edit:false, delete:false },
         operators:  { view:false, create:false, edit:false, delete:false, whatsapp:false },
@@ -2760,6 +2771,7 @@
       none: {
         dashboard:  { view:false },
         guests:     { view:false, create:false, edit:false, delete:false, export:false, whatsapp:false },
+        webleads:   { view:false },
         bookings:   { view:false, create:false, edit:false, delete:false, export:false, whatsapp:false },
         concierge:  { view:false, create:false, edit:false, delete:false },
         operators:  { view:false, create:false, edit:false, delete:false, whatsapp:false },
@@ -4104,6 +4116,7 @@ See you in Cabo! ☀️`;
       const titleMap = {
         'dashboard': 'Operations Dashboard — Live Overview',
         'guests': 'Guest & Lead Directory',
+        'webleads': 'Website Leads — Auto-Captured Inquiries',
         'bookings': 'Bookings Desk — All Excursions & Services',
         'concierge': 'Concierge Desk — Requests, Deliveries & Tasks',
         'operators': 'Partner Operators Portal',
@@ -4119,6 +4132,7 @@ See you in Cabo! ☀️`;
       const viewContainer = document.getElementById("app-view");
       if (view === 'dashboard') renderDashboardView(viewContainer);
       else if (view === 'guests') renderGuestsView(viewContainer);
+      else if (view === 'webleads') renderWebLeadsView(viewContainer);
       else if (view === 'bookings') renderBookingsView(viewContainer);
       else if (view === 'concierge') renderConciergeView(viewContainer);
       else if (view === 'operators') renderOperatorsView(viewContainer);
@@ -4625,6 +4639,95 @@ See you in Cabo! ☀️`;
                 <th>WhatsApp / Phone</th>
                 <th>Resort &amp; Room</th>
                 <th>Check-In / Check-Out</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>${tableRowsHTML}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // ================================================================
+    //  WEBSITE LEADS VIEW — auto-captured leads from the website
+    // ================================================================
+    let webLeadSearchQuery = "";
+    function handleWebLeadSearch(val) {
+      webLeadSearchQuery = val;
+      renderWebLeadsView(document.getElementById("app-view"));
+    }
+    function renderWebLeadsView(container) {
+      const guests = window.CaboDB.getGuests();
+      const webLeads = guests.filter(g => g.status === "Website Lead");
+      const q = (webLeadSearchQuery || "").toLowerCase();
+      const filtered = webLeads.filter(g => {
+        const name = (g.name || "").toLowerCase();
+        const email = (g.email || "").toLowerCase();
+        const phone = g.phone || "";
+        return name.includes(q) || email.includes(q) || phone.includes(webLeadSearchQuery || "");
+      });
+
+      const canEditGuest = hasPermission("guests", "edit");
+      const canDeleteGuest = hasPermission("guests", "delete");
+      const canCreateBooking = hasPermission("bookings", "create");
+
+      let tableRowsHTML = "";
+      if (filtered.length === 0) {
+        tableRowsHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:var(--text-muted); font-style:italic;">No website leads yet. New leads captured from the website appear here automatically.</td></tr>`;
+      } else {
+        filtered.forEach(g => {
+          tableRowsHTML += `
+            <tr>
+              <td><strong style="color:var(--gold);">${g.id}</strong></td>
+              <td>
+                <div style="font-weight:600; color:var(--text);">${g.name}</div>
+                <div style="font-size:11px; color:var(--text-muted);">${g.email || "—"}</div>
+              </td>
+              <td>
+                <a href="https://wa.me/${(g.phone||"").replace(/\D/g,"")}" target="_blank" style="color:var(--whatsapp); text-decoration:none; font-weight:500; display:inline-flex; align-items:center; gap:5px; font-size:12px;" title="WhatsApp ${g.name||""}">
+                  <i class="ti ti-brand-whatsapp"></i> ${g.phone||"—"}
+                </a>
+              </td>
+              <td>
+                <div style="font-size:11px; color:var(--text-muted);">Captured: <strong style="color:var(--text);">${g.createdAt || g.checkIn || "—"}</strong></div>
+              </td>
+              <td><span class="badge badge-website">${g.status}</span></td>
+              <td>
+                <div class="tbl-actions">
+                  <button onclick="openGuestDrawer('${g.id}')" class="tbl-btn tbl-btn-view"><i class="ti ti-eye"></i> View Profile</button>
+                  ${canEditGuest ? `<button onclick="convertWebsiteLead('${g.id}')" class="tbl-btn tbl-btn-edit" style="background:rgba(91,199,142,0.15); color:#5BC78E; border-color:rgba(91,199,142,0.4);"><i class="ti ti-arrow-up-right"></i> Convert to Lead</button>` : ""}
+                  ${canEditGuest ? `<button onclick="openGuestWizard('${g.id}')" class="tbl-btn tbl-btn-edit"><i class="ti ti-edit"></i> Edit</button>` : ""}
+                  ${canCreateBooking ? `<button onclick="openBookingWizard('${g.id}')" class="tbl-btn tbl-btn-book"><i class="ti ti-plus"></i> Add Booking</button>` : ""}
+                  ${canDeleteGuest ? `<button onclick="confirmDeleteGuest('${g.id}')" class="tbl-btn tbl-btn-delete"><i class="ti ti-trash"></i> Delete</button>` : ""}
+                </div>
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      container.innerHTML = `
+        <div class="filter-row" style="flex-wrap:wrap; gap:10px; align-items:center;">
+          <div style="flex:1; min-width:220px;">
+            <div style="font-size:13px; color:var(--text); font-weight:600;"><i class="ti ti-world-www" style="color:#5BC78E;"></i> Website Leads</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">New inquiries captured from the website are added here automatically.</div>
+          </div>
+          <div class="search-box" style="flex:1; min-width:220px;"><i class="ti ti-search"></i><input type="text" class="search-input" placeholder="Search website leads by name, email, or phone..." value="${webLeadSearchQuery}" oninput="handleWebLeadSearch(this.value)" /></div>
+        </div>
+
+        <div style="font-size:11px; color:var(--text-muted); margin:10px 0 6px;">
+          Showing <strong style="color:var(--text);">${filtered.length}</strong> of <strong style="color:var(--text);">${webLeads.length}</strong> website lead${webLeads.length === 1 ? "" : "s"}
+        </div>
+
+        <div class="table-container">
+          <table class="cabo-table">
+            <thead>
+              <tr>
+                <th>Lead ID</th>
+                <th>Name &amp; Email</th>
+                <th>WhatsApp / Phone</th>
+                <th>Captured</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -6231,7 +6334,7 @@ See you in Cabo! ☀️`;
     function updateSidebarForRole() {
       const user = getCurrentUser();
       if (!user) return;
-      const allNavViews = ["dashboard", "guests", "bookings", "concierge", "operators", "history", "settings", "users", "assistant"];
+      const allNavViews = ["dashboard", "guests", "webleads", "bookings", "concierge", "operators", "history", "settings", "users", "assistant"];
       allNavViews.forEach(view => {
         const el = document.getElementById("nav-" + view);
         if (el) el.style.display = hasPermission(view, "view") ? "" : "none";
